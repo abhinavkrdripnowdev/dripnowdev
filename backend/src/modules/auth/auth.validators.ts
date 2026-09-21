@@ -63,10 +63,12 @@ export const verifyPreRegEmailOtpSchema = z.object({
 export const loginEmailSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(1, 'Password is required'),
+  required_role: z.string().optional(),
 });
 
 export const loginPhoneSchema = z.object({
   phone: z.string().regex(phoneRegex, 'Invalid phone number format'),
+  required_role: z.string().optional(),
 });
 
 export const verifyOtpSchema = z.object({

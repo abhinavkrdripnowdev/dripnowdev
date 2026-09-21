@@ -44,10 +44,12 @@ export interface RegisterPayload {
 export interface LoginEmailPayload {
   email: string;
   password: string;
+  required_role?: string;
 }
 
 export interface LoginPhonePayload {
   phone: string;
+  required_role?: string;
 }
 
 export interface VerifyOtpPayload {
