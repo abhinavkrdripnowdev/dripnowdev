@@ -292,6 +292,32 @@ export async function loginWithEmail(
   });
 
   const roles = await getUserRoles(user.id);
+
+  if (input.required_role) {
+    const targetRole = input.required_role;
+    const allowedRoles = [targetRole];
+    if (targetRole === 'admin') allowedRoles.push('manager');
+    if (targetRole === 'shopkeeper') allowedRoles.push('seller');
+
+    const hasPermission = roles.some((r) => r === 'super_admin' || allowedRoles.includes(r));
+    if (!hasPermission) {
+      const displayRoleName =
+        targetRole === 'super_admin'
+          ? 'Super Admin'
+          : targetRole === 'admin'
+          ? 'Admin'
+          : targetRole === 'shopkeeper'
+          ? 'Shopkeeper'
+          : targetRole === 'delivery_partner'
+          ? 'Delivery Partner'
+          : 'Customer';
+      throw Object.assign(
+        new Error(`Access Denied: Your account does not have ${displayRoleName} privileges. Please use your designated login portal.`),
+        { statusCode: 403 }
+      );
+    }
+  }
+
   const { accessToken, refreshToken } = await createSession(user.id, roles, userAgent, ip);
 
   createAuditLog({ userId: user.id, action: 'login_success_email', ipAddress: ip, userAgent });
