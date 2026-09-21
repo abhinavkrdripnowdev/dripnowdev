@@ -8,7 +8,7 @@ const envSchema = z.object({
   PORT: z.string().default('5000'),
   CLIENT_URL: z.string().url().default('http://localhost:5173'),
 
-  DB_CLIENT: z.enum(['better-sqlite3', 'sqlite3', 'mysql2']).default('better-sqlite3'),
+  DB_CLIENT: z.enum(['better-sqlite3', 'sqlite3', 'mysql2']).default('mysql2'),
   DB_FILE: z.string().default('./data/dripnow.sqlite'),
   DB_HOST: z.string().default('localhost'),
   DB_PORT: z.string().default('3306'),
