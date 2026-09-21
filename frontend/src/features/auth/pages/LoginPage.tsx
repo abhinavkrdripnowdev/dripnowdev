@@ -201,26 +201,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ portalRole = 'customer' })
 
   return (
     <AuthLayout>
-      {/* ── Top Role Portal Switcher Bar ───────────────────────────────── */}
-      <div className="portal-selector-bar">
-        {(Object.keys(PORTAL_CONFIGS) as PortalRole[]).map((key) => {
-          const item = PORTAL_CONFIGS[key];
-          const isActive = portalRole === key;
-          return (
-            <button
-              key={key}
-              type="button"
-              className={`portal-selector-btn ${isActive ? 'portal-selector-btn--active' : ''}`}
-              style={isActive ? { borderColor: item.accentColor, color: item.accentColor } : {}}
-              onClick={() => navigate(item.path)}
-            >
-              <span>{item.badgeIcon}</span>
-              <span className="portal-selector-label">{item.badge.replace(' Portal', '')}</span>
-            </button>
-          );
-        })}
-      </div>
-
       <div className="auth-header">
         <div
           className="portal-role-badge"
