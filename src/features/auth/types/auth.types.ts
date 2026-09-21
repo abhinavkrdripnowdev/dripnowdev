@@ -49,10 +49,12 @@ export interface VerifyRegistrationOtpsInput {
 export interface LoginEmailInput {
   email: string;
   password: string;
+  required_role?: string;
 }
 
 export interface LoginPhoneInput {
   phone: string;
+  required_role?: string;
 }
 
 export interface VerifyOtpInput {
@@ -72,13 +74,15 @@ export interface ResetPasswordInput {
 
 // ─── Role constants ────────────────────────────────────────────────────────────
 
-export type UserRole = 'customer' | 'seller' | 'delivery_partner' | 'manager' | 'super_admin';
+export type UserRole = 'customer' | 'seller' | 'shopkeeper' | 'delivery_partner' | 'manager' | 'admin' | 'super_admin';
 
 export const ROLE_DASHBOARD_MAP: Record<UserRole, string> = {
   customer: '/dashboard',
   seller: '/seller/dashboard',
+  shopkeeper: '/seller/dashboard',
   delivery_partner: '/delivery/dashboard',
   manager: '/manager/dashboard',
+  admin: '/manager/dashboard',
   super_admin: '/admin/dashboard',
 };
 

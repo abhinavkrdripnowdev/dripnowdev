@@ -76,7 +76,55 @@ export const AppRouter: React.FC = () => {
             path="/login"
             element={
               <PublicRoute>
-                <LoginPage />
+                <LoginPage portalRole="customer" />
+              </PublicRoute>
+            }
+          />
+          <Route
+            path="/login/customer"
+            element={
+              <PublicRoute>
+                <LoginPage portalRole="customer" />
+              </PublicRoute>
+            }
+          />
+          <Route
+            path="/login/shopkeeper"
+            element={
+              <PublicRoute>
+                <LoginPage portalRole="shopkeeper" />
+              </PublicRoute>
+            }
+          />
+          <Route
+            path="/login/seller"
+            element={
+              <PublicRoute>
+                <LoginPage portalRole="shopkeeper" />
+              </PublicRoute>
+            }
+          />
+          <Route
+            path="/login/delivery"
+            element={
+              <PublicRoute>
+                <LoginPage portalRole="delivery" />
+              </PublicRoute>
+            }
+          />
+          <Route
+            path="/login/admin"
+            element={
+              <PublicRoute>
+                <LoginPage portalRole="admin" />
+              </PublicRoute>
+            }
+          />
+          <Route
+            path="/login/super-admin"
+            element={
+              <PublicRoute>
+                <LoginPage portalRole="super-admin" />
               </PublicRoute>
             }
           />

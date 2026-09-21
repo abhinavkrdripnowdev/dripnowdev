@@ -21,6 +21,72 @@ import type {
 } from '@/features/auth/schemas/auth.schemas';
 import './RegisterPage.css';
 
+export type PortalRole = 'customer' | 'shopkeeper' | 'delivery' | 'admin' | 'super-admin';
+
+interface PortalConfig {
+  roleKey: string;
+  title: string;
+  badge: string;
+  badgeIcon: string;
+  accentColor: string;
+  badgeBg: string;
+  subtitle: string;
+  path: string;
+}
+
+export const PORTAL_CONFIGS: Record<PortalRole, PortalConfig> = {
+  customer: {
+    roleKey: 'customer',
+    title: 'Customer Storefront Sign In',
+    badge: 'Customer Portal',
+    badgeIcon: '🛒',
+    accentColor: 'hsl(262, 83%, 58%)',
+    badgeBg: 'rgba(139, 92, 246, 0.15)',
+    subtitle: 'Sign in to browse products, track orders, and manage your account.',
+    path: '/login',
+  },
+  shopkeeper: {
+    roleKey: 'shopkeeper',
+    title: 'Shopkeeper Merchant Sign In',
+    badge: 'Shopkeeper Portal',
+    badgeIcon: '🏪',
+    accentColor: 'hsl(38, 92%, 50%)',
+    badgeBg: 'rgba(245, 158, 11, 0.15)',
+    subtitle: 'Sign in to manage your shop, list inventory, and fulfill customer orders.',
+    path: '/login/shopkeeper',
+  },
+  delivery: {
+    roleKey: 'delivery_partner',
+    title: 'Delivery Partner Logistics Sign In',
+    badge: 'Delivery Partner Portal',
+    badgeIcon: '🚚',
+    accentColor: 'hsl(172, 66%, 45%)',
+    badgeBg: 'rgba(20, 184, 166, 0.15)',
+    subtitle: 'Sign in to accept delivery dispatches and track active order drop-offs.',
+    path: '/login/delivery',
+  },
+  admin: {
+    roleKey: 'admin',
+    title: 'Admin Operations Sign In',
+    badge: 'Admin Operations Portal',
+    badgeIcon: '🛡️',
+    accentColor: 'hsl(217, 91%, 60%)',
+    badgeBg: 'rgba(59, 130, 246, 0.15)',
+    subtitle: 'Sign in to manage merchant onboardings, monitor operations, and view audit logs.',
+    path: '/login/admin',
+  },
+  'super-admin': {
+    roleKey: 'super_admin',
+    title: 'Super Admin Master Control Sign In',
+    badge: 'Super Admin Portal',
+    badgeIcon: '⚡',
+    accentColor: 'hsl(348, 83%, 58%)',
+    badgeBg: 'rgba(239, 68, 68, 0.15)',
+    subtitle: 'Sign in with master credentials to control system settings, roles, and security policies.',
+    path: '/login/super-admin',
+  },
+};
+
 type LoginMethod = 'email' | 'phone';
 type PhoneStep = 'enter-phone' | 'enter-otp';
 
@@ -33,9 +99,15 @@ const GoogleIcon = () => (
   </svg>
 );
 
-export const LoginPage: React.FC = () => {
+export interface LoginPageProps {
+  portalRole?: PortalRole;
+}
+
+export const LoginPage: React.FC<LoginPageProps> = ({ portalRole = 'customer' }) => {
   const navigate = useNavigate();
   const { setAuth } = useAuthStore();
+
+  const config = PORTAL_CONFIGS[portalRole] ?? PORTAL_CONFIGS.customer;
 
   const [method, setMethod] = useState<LoginMethod>('email');
   const [phoneStep, setPhoneStep] = useState<PhoneStep>('enter-phone');
@@ -68,7 +140,10 @@ export const LoginPage: React.FC = () => {
   const onEmailLogin = emailForm.handleSubmit(async (data) => {
     setGlobalError('');
     try {
-      const response = await authService.loginEmail(data);
+      const response = await authService.loginEmail({
+        ...data,
+        required_role: config.roleKey,
+      });
       setAuth(response.user, response.accessToken);
       navigate(getDefaultDashboard(response.user.roles), { replace: true });
     } catch (err) {
@@ -79,7 +154,7 @@ export const LoginPage: React.FC = () => {
   const onPhoneSubmit = phoneForm.handleSubmit(async (data) => {
     setGlobalError('');
     try {
-      await authService.loginPhone({ phone: data.phone });
+      await authService.loginPhone({ ...data, required_role: config.roleKey });
       setPhone(data.phone);
       setPhoneStep('enter-otp');
       startResendTimer();
@@ -107,7 +182,7 @@ export const LoginPage: React.FC = () => {
   const handleResendOtp = async () => {
     if (resendCountdown > 0) return;
     try {
-      await authService.loginPhone({ phone });
+      await authService.loginPhone({ phone, required_role: config.roleKey });
       setOtp('');
       setOtpError('');
       startResendTimer();
@@ -126,11 +201,38 @@ export const LoginPage: React.FC = () => {
 
   return (
     <AuthLayout>
+      {/* ── Top Role Portal Switcher Bar ───────────────────────────────── */}
+      <div className="portal-selector-bar">
+        {(Object.keys(PORTAL_CONFIGS) as PortalRole[]).map((key) => {
+          const item = PORTAL_CONFIGS[key];
+          const isActive = portalRole === key;
+          return (
+            <button
+              key={key}
+              type="button"
+              className={`portal-selector-btn ${isActive ? 'portal-selector-btn--active' : ''}`}
+              style={isActive ? { borderColor: item.accentColor, color: item.accentColor } : {}}
+              onClick={() => navigate(item.path)}
+            >
+              <span>{item.badgeIcon}</span>
+              <span className="portal-selector-label">{item.badge.replace(' Portal', '')}</span>
+            </button>
+          );
+        })}
+      </div>
+
       <div className="auth-header">
-        <h2 className="auth-title">Welcome back</h2>
+        <div
+          className="portal-role-badge"
+          style={{ background: config.badgeBg, color: config.accentColor, border: `1px solid ${config.accentColor}33` }}
+        >
+          <span>{config.badgeIcon}</span>
+          <span>{config.badge}</span>
+        </div>
+        <h2 className="auth-title">{config.title}</h2>
         <p className="auth-subtitle">
-          Don't have an account?{' '}
-          <Link to="/register" className="auth-link">Create one free</Link>
+          {config.subtitle}{' '}
+          <Link to="/register" className="auth-link">Create an account</Link>
         </p>
       </div>
 
@@ -203,23 +305,26 @@ export const LoginPage: React.FC = () => {
               fullWidth
               isLoading={emailForm.formState.isSubmitting}
             >
-              Sign In
+              Sign In to {config.badge}
             </Button>
           </form>
 
-          <div className="auth-divider"><span>or</span></div>
-
-          <Button
-            id="google-login-btn"
-            variant="secondary"
-            size="md"
-            fullWidth
-            leftIcon={<GoogleIcon />}
-            type="button"
-            onClick={() => window.location.href = '/api/auth/google/redirect'}
-          >
-            Continue with Google
-          </Button>
+          {portalRole === 'customer' && (
+            <>
+              <div className="auth-divider"><span>or</span></div>
+              <Button
+                id="google-login-btn"
+                variant="secondary"
+                size="md"
+                fullWidth
+                leftIcon={<GoogleIcon />}
+                type="button"
+                onClick={() => window.location.href = '/api/auth/google/redirect'}
+              >
+                Continue with Google
+              </Button>
+            </>
+          )}
         </div>
       )}
 
@@ -287,7 +392,7 @@ export const LoginPage: React.FC = () => {
             onClick={handleVerifyOtp}
             type="button"
           >
-            Verify OTP
+            Verify OTP &amp; Sign In
           </Button>
 
           <div className="otp-resend">

@@ -44,10 +44,12 @@ export const verifyRegistrationOtpsSchema = z.object({
 export const loginEmailSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Enter a valid email address'),
   password: z.string().min(1, 'Password is required'),
+  required_role: z.string().optional(),
 });
 
 export const loginPhoneSchema = z.object({
   phone: z.string().min(1, 'Phone number is required').regex(phoneRegex, 'Enter a valid phone number'),
+  required_role: z.string().optional(),
 });
 
 export const otpSchema = z.object({
