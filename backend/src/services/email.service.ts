@@ -2,23 +2,28 @@ import nodemailer from 'nodemailer';
 import { env } from '../config/env';
 
 function createTransporter() {
-  if (env.NODE_ENV === 'development' || !env.SMTP_HOST) {
-    // Use Ethereal mock transport in development
+  const host = env.SMTP_HOST || (env.RESEND_API_KEY ? 'smtp.resend.com' : undefined);
+  const user = env.SMTP_USER || (env.RESEND_API_KEY ? 'resend' : undefined);
+  const pass = env.SMTP_PASS || env.RESEND_API_KEY;
+
+  if (!host || !pass) {
+    // Fallback to Ethereal mock transport in development
     return nodemailer.createTransport({
       host: 'smtp.ethereal.email',
       port: 587,
       auth: {
-        user: env.SMTP_USER ?? 'mock@ethereal.email',
-        pass: env.SMTP_PASS ?? 'mockpassword',
+        user: 'mock@ethereal.email',
+        pass: 'mockpassword',
       },
     });
   }
 
+  const port = Number(env.SMTP_PORT ?? 465);
   return nodemailer.createTransport({
-    host: env.SMTP_HOST,
-    port: Number(env.SMTP_PORT ?? 587),
-    secure: Number(env.SMTP_PORT) === 465,
-    auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass },
   });
 }
 

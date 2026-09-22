@@ -72,3 +72,18 @@ export interface GoogleProfile {
   name: string;
   picture?: string;
 }
+
+export interface RegisterSellerPayload extends RegisterPayload {
+  business_name: string;
+  business_type?: string;
+  address?: string;
+  documents_json?: Record<string, unknown> | Array<unknown>;
+}
+
+export interface RegisterDeliveryPayload extends RegisterPayload {
+  vehicle_type?: string;
+  license_number?: string;
+  address?: string;
+  documents_json?: Record<string, unknown> | Array<unknown>;
+}
+

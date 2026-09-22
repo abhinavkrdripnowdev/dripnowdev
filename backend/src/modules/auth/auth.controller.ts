@@ -3,6 +3,8 @@ import { ZodSchema } from 'zod';
 import * as authService from './auth.service';
 import {
   registerSchema,
+  registerSellerSchema,
+  registerDeliverySchema,
   checkUsernameSchema,
   loginEmailSchema,
   loginPhoneSchema,
@@ -19,10 +21,12 @@ import {
   verifyEmailSchema,
 } from './auth.validators';
 import { verifyRefreshToken } from '../../services/token.service';
+import { createSecurityEvent } from '../../services/security.service';
 import {
   sendSuccess,
   sendCreated,
   sendError,
+  sendForbidden,
   sendUnauthorized,
 } from '../../utils/response';
 
@@ -119,6 +123,79 @@ export async function register(req: Request, res: Response, next: NextFunction):
     next(err);
   }
 }
+
+export async function registerSeller(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const parsed = validate(registerSellerSchema, req.body);
+    if (!parsed.success) {
+      sendError(res, 'Validation failed', 422, parsed.errors);
+      return;
+    }
+
+    const result = await authService.registerSeller(
+      parsed.data,
+      req.ip,
+      req.headers['user-agent']
+    );
+
+    res.cookie('refreshToken', result.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    sendCreated(res, {
+      user: result.user,
+      accessToken: result.accessToken,
+    }, 'Seller application submitted and account created successfully');
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function registerDelivery(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const parsed = validate(registerDeliverySchema, req.body);
+    if (!parsed.success) {
+      sendError(res, 'Validation failed', 422, parsed.errors);
+      return;
+    }
+
+    const result = await authService.registerDeliveryPartner(
+      parsed.data,
+      req.ip,
+      req.headers['user-agent']
+    );
+
+    res.cookie('refreshToken', result.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    sendCreated(res, {
+      user: result.user,
+      accessToken: result.accessToken,
+    }, 'Delivery partner application submitted and account created successfully');
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function registerAdminAttempt(req: Request, res: Response): Promise<void> {
+  createSecurityEvent({
+    eventType: 'unauthorized_admin_registration_attempt',
+    severity: 'critical',
+    ipAddress: req.ip,
+    userAgent: req.headers['user-agent'],
+    details: { bodySubmitted: req.body },
+  });
+
+  sendForbidden(res, 'Public admin registration is strictly forbidden on DripNow platform');
+}
+
 
 // ─── Verify Phone OTP ─────────────────────────────────────────────────────────
 

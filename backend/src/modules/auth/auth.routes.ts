@@ -30,6 +30,16 @@ router.post('/check-username', controller.checkUsername);
 /** POST /api/auth/register — Create customer account */
 router.post('/register', registrationLimiter, controller.register);
 
+/** POST /api/auth/register/seller — Register seller account & application */
+router.post('/register/seller', registrationLimiter, controller.registerSeller);
+
+/** POST /api/auth/register/delivery — Register delivery partner account & application */
+router.post('/register/delivery', registrationLimiter, controller.registerDelivery);
+
+/** POST /api/auth/register/admin — Block public admin registration & log security event */
+router.all('/register/admin', controller.registerAdminAttempt);
+
+
 /** POST /api/auth/verify-phone-otp — Verify phone OTP (phone login) */
 router.post('/verify-phone-otp', otpLimiter, controller.verifyPhoneOtp);
 

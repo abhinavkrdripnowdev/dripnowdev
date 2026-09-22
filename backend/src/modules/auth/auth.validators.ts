@@ -135,7 +135,23 @@ export const verifyEmailSchema = z.object({
   token: z.string().min(1, 'Verification token is required'),
 });
 
+export const registerSellerSchema = registerSchema.extend({
+  business_name: z.string().min(2, 'Business name must be at least 2 characters').max(255),
+  business_type: z.string().max(100).optional(),
+  address: z.string().max(1000).optional(),
+  documents_json: z.union([z.record(z.string(), z.unknown()), z.array(z.unknown())]).optional(),
+});
+
+export const registerDeliverySchema = registerSchema.extend({
+  vehicle_type: z.string().max(100).optional(),
+  license_number: z.string().max(100).optional(),
+  address: z.string().max(1000).optional(),
+  documents_json: z.union([z.record(z.string(), z.unknown()), z.array(z.unknown())]).optional(),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
+export type RegisterSellerInput = z.infer<typeof registerSellerSchema>;
+export type RegisterDeliveryInput = z.infer<typeof registerDeliverySchema>;
 export type LoginEmailInput = z.infer<typeof loginEmailSchema>;
 export type LoginPhoneInput = z.infer<typeof loginPhoneSchema>;
 export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;
@@ -143,3 +159,4 @@ export type VerifyRegistrationOtpsInput = z.infer<typeof verifyRegistrationOtpsS
 export type ResendEmailOtpInput = z.infer<typeof resendEmailOtpSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+

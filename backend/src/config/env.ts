@@ -29,7 +29,8 @@ const envSchema = z.object({
   SMTP_PORT: z.string().optional(),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
-  EMAIL_FROM: z.string().default('DripNow <noreply@dripnow.com>'),
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().default('DripNow <onboarding@resend.dev>'),
 
   OTP_EXPIRES_IN_MINUTES: z.string().default('10'),
   OTP_MAX_ATTEMPTS: z.string().default('5'),
