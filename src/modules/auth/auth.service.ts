@@ -19,7 +19,15 @@ import {
 import { sendEmailVerification, sendPasswordResetEmail, sendWelcomeEmail } from '../../services/email.service';
 import { createSession, rotateRefreshToken, revokeAllSessions, revokeSession } from '../../services/token.service';
 import { createAuditLog } from '../../services/audit.service';
-import type { AuthenticatedUser, RegisterPayload, LoginEmailPayload, GoogleProfile } from './auth.types';
+import { createSecurityEvent } from '../../services/security.service';
+import type {
+  AuthenticatedUser,
+  RegisterPayload,
+  RegisterSellerPayload,
+  RegisterDeliveryPayload,
+  LoginEmailPayload,
+  GoogleProfile,
+} from './auth.types';
 
 const LOCK_DURATION_MINUTES = 15;
 const MAX_FAILED_ATTEMPTS = 5;
@@ -142,6 +150,134 @@ export async function registerCustomer(
   const authenticatedUser = await buildAuthenticatedUser(userId);
   return { user: authenticatedUser, accessToken, refreshToken };
 }
+
+export async function registerSeller(
+  input: RegisterSellerPayload,
+  ip?: string,
+  userAgent?: string
+): Promise<{ user: AuthenticatedUser; accessToken: string; refreshToken: string }> {
+  if (!verifyProofToken(input.phone, input.phone_token)) {
+    throw Object.assign(new Error('Phone verification expired or invalid.'), { statusCode: 400 });
+  }
+  if (!verifyProofToken(input.email, input.email_token)) {
+    throw Object.assign(new Error('Email verification expired or invalid.'), { statusCode: 400 });
+  }
+
+  const existingUsername = await db('users').where({ username: input.username }).first();
+  if (existingUsername) throw Object.assign(new Error('Username is already taken'), { statusCode: 409 });
+
+  const existingPhone = await db('users').where({ phone: input.phone }).first();
+  if (existingPhone) throw Object.assign(new Error('Phone number is already registered'), { statusCode: 409 });
+
+  const existingEmail = await db('users').where({ email: input.email }).first();
+  if (existingEmail) throw Object.assign(new Error('Email address is already registered'), { statusCode: 409 });
+
+  const userId = uuidv4();
+
+  await db.transaction(async (trx) => {
+    await trx('users').insert({
+      id: userId,
+      username: input.username,
+      full_name: input.full_name,
+      phone: input.phone,
+      email: input.email,
+      phone_verified: true,
+      email_verified: true,
+      status: 'active',
+    });
+
+    // Assign seller role (id=2)
+    await trx('user_roles').insert({ user_id: userId, role_id: 2, granted_by: null });
+
+    // Store password credential
+    const hash = await hashPassword(input.password);
+    await trx('credentials').insert({ user_id: userId, password_hash: hash });
+
+    // Create onboarding application entry
+    await trx('onboarding_applications').insert({
+      user_id: userId,
+      role_applied: 'seller',
+      status: 'pending',
+      business_name: input.business_name,
+      business_type: input.business_type ?? null,
+      address: input.address ?? null,
+      documents_json: input.documents_json ? JSON.stringify(input.documents_json) : null,
+    });
+  });
+
+  const roles = await getUserRoles(userId);
+  const { accessToken, refreshToken } = await createSession(userId, roles, userAgent, ip);
+
+  createAuditLog({ userId, action: 'register_completed_verified', ipAddress: ip, userAgent, metadata: { role: 'seller' } });
+  sendWelcomeEmail(input.email, input.full_name).catch(() => {});
+
+  const authenticatedUser = await buildAuthenticatedUser(userId);
+  return { user: authenticatedUser, accessToken, refreshToken };
+}
+
+export async function registerDeliveryPartner(
+  input: RegisterDeliveryPayload,
+  ip?: string,
+  userAgent?: string
+): Promise<{ user: AuthenticatedUser; accessToken: string; refreshToken: string }> {
+  if (!verifyProofToken(input.phone, input.phone_token)) {
+    throw Object.assign(new Error('Phone verification expired or invalid.'), { statusCode: 400 });
+  }
+  if (!verifyProofToken(input.email, input.email_token)) {
+    throw Object.assign(new Error('Email verification expired or invalid.'), { statusCode: 400 });
+  }
+
+  const existingUsername = await db('users').where({ username: input.username }).first();
+  if (existingUsername) throw Object.assign(new Error('Username is already taken'), { statusCode: 409 });
+
+  const existingPhone = await db('users').where({ phone: input.phone }).first();
+  if (existingPhone) throw Object.assign(new Error('Phone number is already registered'), { statusCode: 409 });
+
+  const existingEmail = await db('users').where({ email: input.email }).first();
+  if (existingEmail) throw Object.assign(new Error('Email address is already registered'), { statusCode: 409 });
+
+  const userId = uuidv4();
+  const docs = input.documents_json ? { ...input.documents_json, vehicle_type: input.vehicle_type, license_number: input.license_number } : { vehicle_type: input.vehicle_type, license_number: input.license_number };
+
+  await db.transaction(async (trx) => {
+    await trx('users').insert({
+      id: userId,
+      username: input.username,
+      full_name: input.full_name,
+      phone: input.phone,
+      email: input.email,
+      phone_verified: true,
+      email_verified: true,
+      status: 'active',
+    });
+
+    // Assign delivery_partner role (id=3)
+    await trx('user_roles').insert({ user_id: userId, role_id: 3, granted_by: null });
+
+    // Store password credential
+    const hash = await hashPassword(input.password);
+    await trx('credentials').insert({ user_id: userId, password_hash: hash });
+
+    // Create onboarding application entry
+    await trx('onboarding_applications').insert({
+      user_id: userId,
+      role_applied: 'delivery_partner',
+      status: 'pending',
+      address: input.address ?? null,
+      documents_json: JSON.stringify(docs),
+    });
+  });
+
+  const roles = await getUserRoles(userId);
+  const { accessToken, refreshToken } = await createSession(userId, roles, userAgent, ip);
+
+  createAuditLog({ userId, action: 'register_completed_verified', ipAddress: ip, userAgent, metadata: { role: 'delivery_partner' } });
+  sendWelcomeEmail(input.email, input.full_name).catch(() => {});
+
+  const authenticatedUser = await buildAuthenticatedUser(userId);
+  return { user: authenticatedUser, accessToken, refreshToken };
+}
+
 
 // ─── Dual OTP Verification for Registration ────────────────────────────────────
 

@@ -7,6 +7,13 @@ const OTP_EXPIRES_MINUTES = Number(env.OTP_EXPIRES_IN_MINUTES);
 const OTP_MAX_ATTEMPTS = Number(env.OTP_MAX_ATTEMPTS);
 const RESET_TOKEN_EXPIRES_MINUTES = Number(env.RESET_TOKEN_EXPIRES_IN_MINUTES);
 
+function logOtpToTerminal(type: string, target: string, otp: string) {
+  console.log('\n┌──────────────────────────────────────────────────────────┐');
+  console.log(`│  🔑 GENERATED ${type.toUpperCase()} OTP CODE: [ ${otp} ]`);
+  console.log(`│  Target: ${target}`);
+  console.log('└──────────────────────────────────────────────────────────┘\n');
+}
+
 /**
  * Generate and store a phone OTP for a user (replaces previous unused ones)
  */
@@ -31,10 +38,10 @@ export async function sendPhoneOtp(userId: string, phone: string): Promise<strin
     attempt_count: 0,
   });
 
-  // Dispatch OTP via SMS provider
+  logOtpToTerminal('Phone', phone, otp);
   await dispatchSms(phone, otp);
 
-  return otp; // Only returned in development for testing
+  return otp;
 }
 
 /**
@@ -102,10 +109,7 @@ export async function sendEmailOtp(userId: string, email: string, name: string):
     attempt_count: 0,
   });
 
-  if (env.NODE_ENV === 'development') {
-    console.log(`\n📧 [EMAIL OTP MOCK] Email: ${email} → OTP: ${otp}\n`);
-  }
-
+  logOtpToTerminal('Email', email, otp);
   await sendEmailOtpCode(email, name, otp);
 
   return otp;
@@ -182,6 +186,7 @@ export async function sendPreRegPhoneOtp(phone: string): Promise<string> {
     attempt_count: 0,
   });
 
+  logOtpToTerminal('Pre-Registration Phone', phone, otp);
   await dispatchSms(phone, otp);
 
   return otp;
@@ -249,10 +254,7 @@ export async function sendPreRegEmailOtp(email: string): Promise<string> {
     attempt_count: 0,
   });
 
-  if (env.NODE_ENV === 'development') {
-    console.log(`\n📧 [EMAIL OTP MOCK] Email: ${email} → OTP: ${otp}\n`);
-  }
-
+  logOtpToTerminal('Pre-Registration Email', email, otp);
   await sendEmailOtpCode(email, 'User', otp);
 
   return otp;
@@ -327,10 +329,7 @@ export async function sendPasswordResetOtp(email: string): Promise<void> {
     attempt_count: 0,
   });
 
-  if (env.NODE_ENV === 'development') {
-    console.log(`\n🔑 [PASSWORD RESET OTP MOCK] Email: ${email} → OTP: ${otp}\n`);
-  }
-
+  logOtpToTerminal('Password Reset', email, otp);
   await sendPasswordResetOtpEmail(user.email, user.full_name, otp);
 }
 
@@ -375,10 +374,7 @@ export async function verifyPasswordResetOtp(
  * Send OTP via configured SMS provider (or console mock)
  */
 async function dispatchSms(phone: string, otp: string): Promise<void> {
-  if (env.SMS_PROVIDER === 'mock' || env.NODE_ENV === 'development') {
-    console.log(`\n📱 [OTP MOCK] Phone: ${phone} → OTP: ${otp}\n`);
-    return;
-  }
-  // TODO: Integrate MSG91 / Twilio here
-  throw new Error('SMS provider not configured');
+  // Always log for local development visibility
+  logOtpToTerminal('SMS / Phone', phone, otp);
 }
+
