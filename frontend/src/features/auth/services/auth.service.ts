@@ -18,9 +18,10 @@ function extractError(error: unknown): string {
 }
 
 export const authService = {
-  async sendPreRegPhoneOtp(phone: string): Promise<void> {
+  async sendPreRegPhoneOtp(phone: string): Promise<string | undefined> {
     try {
-      await api.post('/auth/register/send-phone-otp', { phone });
+      const res = await api.post<ApiResponse<{ otp?: string }>>('/auth/register/send-phone-otp', { phone });
+      return res.data.data?.otp;
     } catch (err) { throw new Error(extractError(err)); }
   },
 
@@ -31,9 +32,10 @@ export const authService = {
     } catch (err) { throw new Error(extractError(err)); }
   },
 
-  async sendPreRegEmailOtp(email: string): Promise<void> {
+  async sendPreRegEmailOtp(email: string): Promise<string | undefined> {
     try {
-      await api.post('/auth/register/send-email-otp', { email });
+      const res = await api.post<ApiResponse<{ otp?: string }>>('/auth/register/send-email-otp', { email });
+      return res.data.data?.otp;
     } catch (err) { throw new Error(extractError(err)); }
   },
 
@@ -86,9 +88,10 @@ export const authService = {
     } catch (err) { throw new Error(extractError(err)); }
   },
 
-  async loginPhone(data: LoginPhoneInput): Promise<void> {
+  async loginPhone(data: LoginPhoneInput): Promise<string | undefined> {
     try {
-      await api.post('/auth/login/phone', data);
+      const res = await api.post<ApiResponse<{ otp?: string }>>('/auth/login/phone', data);
+      return res.data.data?.otp;
     } catch (err) { throw new Error(extractError(err)); }
   },
 

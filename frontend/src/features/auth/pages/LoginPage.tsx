@@ -154,7 +154,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ portalRole = 'customer' })
   const onPhoneSubmit = phoneForm.handleSubmit(async (data) => {
     setGlobalError('');
     try {
-      await authService.loginPhone({ ...data, required_role: config.roleKey });
+      const generatedOtp = await authService.loginPhone({ ...data, required_role: config.roleKey });
+      if (generatedOtp) setOtp(generatedOtp);
       setPhone(data.phone);
       setPhoneStep('enter-otp');
       startResendTimer();
@@ -182,8 +183,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ portalRole = 'customer' })
   const handleResendOtp = async () => {
     if (resendCountdown > 0) return;
     try {
-      await authService.loginPhone({ phone, required_role: config.roleKey });
-      setOtp('');
+      const generatedOtp = await authService.loginPhone({ phone, required_role: config.roleKey });
+      if (generatedOtp) setOtp(generatedOtp);
       setOtpError('');
       startResendTimer();
     } catch (err) {
@@ -348,6 +349,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ portalRole = 'customer' })
             <p className="auth-subtitle">
               Sent to <strong style={{ color: 'var(--color-text)' }}>{phone}</strong>
             </p>
+
+            {otp && (
+              <div style={{ marginTop: 12, padding: '8px 12px', background: 'rgba(168, 85, 247, 0.15)', border: '1px solid rgba(168, 85, 247, 0.4)', borderRadius: 6, color: '#e2e8f0', fontWeight: 600, fontSize: '0.85rem', textAlign: 'center' }}>
+                🔑 Local Dev OTP: <span style={{ letterSpacing: '2px', fontSize: '1.1rem', fontWeight: 800, color: '#ff9900' }}>{otp}</span>
+              </div>
+            )}
           </div>
 
           <div className="otp-container">

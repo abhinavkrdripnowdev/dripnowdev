@@ -51,8 +51,8 @@ export async function sendPreRegPhoneOtp(req: Request, res: Response, next: Next
   try {
     const parsed = validate(sendPreRegPhoneOtpSchema, req.body);
     if (!parsed.success) { sendError(res, 'Validation failed', 422, parsed.errors); return; }
-    await authService.sendPreRegPhoneOtp(parsed.data.phone);
-    sendSuccess(res, null, 'OTP sent to phone number');
+    const result = await authService.sendPreRegPhoneOtp(parsed.data.phone);
+    sendSuccess(res, result, 'OTP sent to phone number');
   } catch (err) { next(err); }
 }
 
@@ -69,8 +69,8 @@ export async function sendPreRegEmailOtp(req: Request, res: Response, next: Next
   try {
     const parsed = validate(sendPreRegEmailOtpSchema, req.body);
     if (!parsed.success) { sendError(res, 'Validation failed', 422, parsed.errors); return; }
-    await authService.sendPreRegEmailOtp(parsed.data.email);
-    sendSuccess(res, null, 'OTP sent to email address');
+    const result = await authService.sendPreRegEmailOtp(parsed.data.email);
+    sendSuccess(res, result, 'OTP sent to email address');
   } catch (err) { next(err); }
 }
 
@@ -240,8 +240,8 @@ export async function resendPhoneOtp(req: Request, res: Response, next: NextFunc
       return;
     }
 
-    await authService.initiatePhoneLogin(parsed.data.phone, req.ip, req.headers['user-agent']);
-    sendSuccess(res, null, 'OTP resent successfully');
+    const result = await authService.initiatePhoneLogin(parsed.data.phone, req.ip, req.headers['user-agent']);
+    sendSuccess(res, result, 'OTP resent successfully');
   } catch (err) {
     next(err);
   }
@@ -257,8 +257,8 @@ export async function loginPhone(req: Request, res: Response, next: NextFunction
       return;
     }
 
-    await authService.initiatePhoneLogin(parsed.data.phone, req.ip, req.headers['user-agent']);
-    sendSuccess(res, null, 'OTP sent to your phone number');
+    const result = await authService.initiatePhoneLogin(parsed.data.phone, req.ip, req.headers['user-agent']);
+    sendSuccess(res, result, 'OTP sent to your phone number');
   } catch (err) {
     next(err);
   }

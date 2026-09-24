@@ -9,7 +9,7 @@ const jsonHandler = (_req: Request, res: Response) => {
 /** General API rate limiter */
 export const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
+  max: 5000,
   standardHeaders: true,
   legacyHeaders: false,
   handler: jsonHandler,
@@ -18,7 +18,7 @@ export const generalLimiter = rateLimit({
 /** Login attempts limiter */
 export const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 5000,
   standardHeaders: true,
   legacyHeaders: false,
   handler: jsonHandler,
@@ -28,7 +28,7 @@ export const loginLimiter = rateLimit({
 /** OTP send rate limiter */
 export const otpLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 5,
+  max: 5000,
   standardHeaders: true,
   legacyHeaders: false,
   handler: jsonHandler,
@@ -38,7 +38,7 @@ export const otpLimiter = rateLimit({
 /** Password reset request limiter */
 export const passwordResetLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 5,
+  max: 5000,
   standardHeaders: true,
   legacyHeaders: false,
   handler: jsonHandler,
@@ -47,7 +47,7 @@ export const passwordResetLimiter = rateLimit({
 /** Registration limiter */
 export const registrationLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: 10,
+  max: 5000,
   standardHeaders: true,
   legacyHeaders: false,
   handler: jsonHandler,

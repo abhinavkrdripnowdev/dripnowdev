@@ -8,10 +8,13 @@ const OTP_MAX_ATTEMPTS = Number(env.OTP_MAX_ATTEMPTS);
 const RESET_TOKEN_EXPIRES_MINUTES = Number(env.RESET_TOKEN_EXPIRES_IN_MINUTES);
 
 function logOtpToTerminal(type: string, target: string, otp: string) {
-  console.log('\n┌──────────────────────────────────────────────────────────┐');
-  console.log(`│  🔑 GENERATED ${type.toUpperCase()} OTP CODE: [ ${otp} ]`);
-  console.log(`│  Target: ${target}`);
-  console.log('└──────────────────────────────────────────────────────────┘\n');
+  const logLine = `\n====================================================\n>>> [OTP GENERATED] <<<\nType:   ${type.toUpperCase()}\nTarget: ${target}\nCODE:   [ ${otp} ]\n====================================================\n`;
+  console.log(logLine);
+  try {
+    process.stdout.write(`\n[OTP LOG] ${type.toUpperCase()} -> ${target} : ${otp}\n`);
+  } catch {
+    /* fallback */
+  }
 }
 
 /**
