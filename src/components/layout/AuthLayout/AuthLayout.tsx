@@ -22,9 +22,44 @@ const Logo = () => (
   </div>
 );
 
+import { useAuthStore } from '@/store/auth.store';
+
 export const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
+  const { isAuthenticated, user, clearAuth } = useAuthStore();
+
   return (
-    <div className="auth-layout">
+    <div className="auth-layout" style={{ position: 'relative' }}>
+      {isAuthenticated && (
+        <div style={{
+          position: 'absolute',
+          top: '20px',
+          right: '24px',
+          zIndex: 100,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+        }}>
+          <span style={{ fontSize: '0.875rem', color: 'hsl(220, 10%, 65%)' }}>
+            Logged in as <strong>{user?.full_name || user?.email}</strong>
+          </span>
+          <button
+            onClick={clearAuth}
+            style={{
+              padding: '8px 14px',
+              borderRadius: '8px',
+              border: '1px solid hsl(0, 72%, 51%, 0.4)',
+              background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(185, 28, 28, 0.3))',
+              color: '#f87171',
+              fontWeight: 600,
+              fontSize: '0.8rem',
+              cursor: 'pointer',
+            }}
+          >
+            Log Out
+          </button>
+        </div>
+      )}
+
       {/* Left decorative panel — visible on large screens */}
       <aside className="auth-panel" aria-hidden="true">
         <div className="auth-panel__content">
