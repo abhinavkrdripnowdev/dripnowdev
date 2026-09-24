@@ -35,6 +35,10 @@ export function sendError(
   return res.status(statusCode).json(response);
 }
 
+export function sendBadRequest(res: Response, message = 'Bad request'): Response {
+  return sendError(res, message, 400);
+}
+
 export function sendUnauthorized(res: Response, message = 'Unauthorized'): Response {
   return sendError(res, message, 401);
 }
