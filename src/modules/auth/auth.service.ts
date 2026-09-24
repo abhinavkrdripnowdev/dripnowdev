@@ -62,8 +62,9 @@ async function buildAuthenticatedUser(userId: string): Promise<AuthenticatedUser
 
 // ─── Pre-Registration Inline OTP Handlers ─────────────────────────────────────
 
-export async function sendPreRegPhoneOtp(phone: string): Promise<void> {
-  await sendPreRegPhoneOtpService(phone);
+export async function sendPreRegPhoneOtp(phone: string): Promise<{ otp: string }> {
+  const otp = await sendPreRegPhoneOtpService(phone);
+  return { otp };
 }
 
 export async function verifyPreRegPhoneOtp(phone: string, otp: string): Promise<{ verificationToken: string }> {
@@ -74,8 +75,9 @@ export async function verifyPreRegPhoneOtp(phone: string, otp: string): Promise<
   return { verificationToken: result.verificationToken };
 }
 
-export async function sendPreRegEmailOtp(email: string): Promise<void> {
-  await sendPreRegEmailOtpService(email);
+export async function sendPreRegEmailOtp(email: string): Promise<{ otp: string }> {
+  const otp = await sendPreRegEmailOtpService(email);
+  return { otp };
 }
 
 export async function verifyPreRegEmailOtp(email: string, otp: string): Promise<{ verificationToken: string }> {
@@ -338,13 +340,14 @@ export async function initiatePhoneLogin(
   phone: string,
   ip?: string,
   userAgent?: string
-): Promise<void> {
+): Promise<{ otp: string }> {
   const user = await db('users').where({ phone }).first();
   if (!user) throw Object.assign(new Error('No account found with this phone number'), { statusCode: 404 });
   if (user.status === 'suspended') throw Object.assign(new Error('Your account has been suspended'), { statusCode: 403 });
 
-  await sendPhoneOtp(user.id, phone);
+  const otp = await sendPhoneOtp(user.id, phone);
   createAuditLog({ userId: user.id, action: 'phone_otp_sent', ipAddress: ip, userAgent });
+  return { otp };
 }
 
 export async function verifyOtpAndLogin(

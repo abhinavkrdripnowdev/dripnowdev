@@ -8,6 +8,11 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import authRoutes from './modules/auth/auth.routes';
 import customerRoutes from './modules/customer/customer.routes';
 import mapsRoutes from './modules/maps/maps.routes';
+import sellerRoutes from './modules/seller/seller.routes';
+import adminSellerRoutes from './modules/admin/admin.seller.routes';
+import productRoutes from './modules/product/product.routes';
+import sellerOrderRoutes from './modules/seller_order/seller_order.routes';
+import offerRoutes from './modules/offer/offer.routes';
 import { checkDatabaseConnection } from './config/database';
 
 const app = express();
@@ -47,6 +52,11 @@ app.get('/health', async (_req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/v1/customer', customerRoutes);
 app.use('/api/v1/maps', mapsRoutes);
+app.use('/api/v1/seller/orders', sellerOrderRoutes);
+app.use('/api/v1/seller', sellerRoutes);
+app.use('/api/v1/admin/sellers', adminSellerRoutes);
+app.use('/api/v1/products', productRoutes);
+app.use('/api/v1/offers', offerRoutes);
 
 // ─── 404 Handler ──────────────────────────────────────────────────────────────
 app.use(notFoundHandler);
@@ -73,7 +83,8 @@ async function startServer() {
   app.listen(PORT, () => {
     console.log(`\n🚀 DripNow API running on http://localhost:${PORT}`);
     console.log(`   Environment: ${env.NODE_ENV}`);
-    console.log(`   Health check: http://localhost:${PORT}/health\n`);
+    console.log(`   Health check: http://localhost:${PORT}/health`);
+    console.log(`   Last Reload Time: ${new Date().toISOString()}\n`);
   });
 }
 
