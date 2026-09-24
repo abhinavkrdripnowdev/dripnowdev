@@ -6,6 +6,8 @@ import { env } from './config/env';
 import { generalLimiter } from './middleware/rateLimiter';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import authRoutes from './modules/auth/auth.routes';
+import customerRoutes from './modules/customer/customer.routes';
+import mapsRoutes from './modules/maps/maps.routes';
 import { checkDatabaseConnection } from './config/database';
 
 const app = express();
@@ -43,6 +45,8 @@ app.get('/health', async (_req, res) => {
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
+app.use('/api/v1/customer', customerRoutes);
+app.use('/api/v1/maps', mapsRoutes);
 
 // ─── 404 Handler ──────────────────────────────────────────────────────────────
 app.use(notFoundHandler);
