@@ -30,7 +30,7 @@ const GoogleIcon = () => (
   </svg>
 );
 
-const phoneRegex = /^\+[1-9]\d{7,14}$/;
+const phoneRegex = /^(\+?[1-9]\d{7,14}|\d{10})$/;
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const RegisterPage: React.FC = () => {
@@ -117,8 +117,8 @@ export const RegisterPage: React.FC = () => {
     setGlobalError('');
     setPhoneSendLoading(true);
     try {
-      await authService.sendPreRegPhoneOtp(phoneValue);
-      setPhoneOtp('');
+      const generatedOtp = await authService.sendPreRegPhoneOtp(phoneValue);
+      setPhoneOtp(generatedOtp || '');
       setPhoneOtpError('');
       setIsPhoneModalOpen(true);
       startPhoneResendTimer();
@@ -151,8 +151,8 @@ export const RegisterPage: React.FC = () => {
   const handleResendPhoneOtp = async () => {
     if (phoneResendCountdown > 0) return;
     try {
-      await authService.sendPreRegPhoneOtp(phoneValue);
-      setPhoneOtp('');
+      const generatedOtp = await authService.sendPreRegPhoneOtp(phoneValue);
+      setPhoneOtp(generatedOtp || '');
       setPhoneOtpError('');
       startPhoneResendTimer();
     } catch (err) {
@@ -166,8 +166,8 @@ export const RegisterPage: React.FC = () => {
     setGlobalError('');
     setEmailSendLoading(true);
     try {
-      await authService.sendPreRegEmailOtp(emailValue);
-      setEmailOtp('');
+      const generatedOtp = await authService.sendPreRegEmailOtp(emailValue);
+      setEmailOtp(generatedOtp || '');
       setEmailOtpError('');
       setIsEmailModalOpen(true);
       startEmailResendTimer();
@@ -200,8 +200,8 @@ export const RegisterPage: React.FC = () => {
   const handleResendEmailOtp = async () => {
     if (emailResendCountdown > 0) return;
     try {
-      await authService.sendPreRegEmailOtp(emailValue);
-      setEmailOtp('');
+      const generatedOtp = await authService.sendPreRegEmailOtp(emailValue);
+      setEmailOtp(generatedOtp || '');
       setEmailOtpError('');
       startEmailResendTimer();
     } catch (err) {
@@ -405,6 +405,12 @@ export const RegisterPage: React.FC = () => {
         title="Verify Mobile Number"
         subtitle={`Enter the 6-digit OTP code sent to ${phoneValue}`}
       >
+        {phoneOtp && (
+          <div style={{ padding: '8px 12px', background: 'rgba(168, 85, 247, 0.15)', border: '1px solid rgba(168, 85, 247, 0.4)', borderRadius: 6, color: '#e2e8f0', fontWeight: 600, fontSize: '0.85rem', textAlign: 'center', marginBottom: 12 }}>
+            🔑 Local Dev OTP: <span style={{ letterSpacing: '2px', fontSize: '1.1rem', fontWeight: 800, color: '#ff9900' }}>{phoneOtp}</span>
+          </div>
+        )}
+
         {phoneOtpError && (
           <div className="auth-alert auth-alert--error animate-fade-in-down" role="alert">
             {phoneOtpError}
@@ -452,6 +458,12 @@ export const RegisterPage: React.FC = () => {
         title="Verify Email Address"
         subtitle={`Enter the 6-digit OTP code sent to ${emailValue}`}
       >
+        {emailOtp && (
+          <div style={{ padding: '8px 12px', background: 'rgba(168, 85, 247, 0.15)', border: '1px solid rgba(168, 85, 247, 0.4)', borderRadius: 6, color: '#e2e8f0', fontWeight: 600, fontSize: '0.85rem', textAlign: 'center', marginBottom: 12 }}>
+            🔑 Local Dev OTP: <span style={{ letterSpacing: '2px', fontSize: '1.1rem', fontWeight: 800, color: '#ff9900' }}>{emailOtp}</span>
+          </div>
+        )}
+
         {emailOtpError && (
           <div className="auth-alert auth-alert--error animate-fade-in-down" role="alert">
             {emailOtpError}
