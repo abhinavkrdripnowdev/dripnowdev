@@ -20,7 +20,8 @@ import {
   resendOtpSchema,
   verifyEmailSchema,
 } from './auth.validators';
-import { verifyRefreshToken } from '../../services/token.service';
+import { db } from '../../config/database';
+import { sha256Hash } from '../../utils/crypto';
 import { createSecurityEvent } from '../../services/security.service';
 import {
   sendSuccess,
@@ -52,7 +53,7 @@ export async function sendPreRegPhoneOtp(req: Request, res: Response, next: Next
     const parsed = validate(sendPreRegPhoneOtpSchema, req.body);
     if (!parsed.success) { sendError(res, 'Validation failed', 422, parsed.errors); return; }
     const result = await authService.sendPreRegPhoneOtp(parsed.data.phone);
-    sendSuccess(res, result, 'OTP sent to phone number');
+    sendSuccess(res, null, 'OTP sent to phone number');
   } catch (err) { next(err); }
 }
 
@@ -70,7 +71,7 @@ export async function sendPreRegEmailOtp(req: Request, res: Response, next: Next
     const parsed = validate(sendPreRegEmailOtpSchema, req.body);
     if (!parsed.success) { sendError(res, 'Validation failed', 422, parsed.errors); return; }
     const result = await authService.sendPreRegEmailOtp(parsed.data.email);
-    sendSuccess(res, result, 'OTP sent to email address');
+    sendSuccess(res, null, 'OTP sent to email address');
   } catch (err) { next(err); }
 }
 
@@ -241,7 +242,7 @@ export async function resendPhoneOtp(req: Request, res: Response, next: NextFunc
     }
 
     const result = await authService.initiatePhoneLogin(parsed.data.phone, req.ip, req.headers['user-agent']);
-    sendSuccess(res, result, 'OTP resent successfully');
+    sendSuccess(res, null, 'OTP resent successfully');
   } catch (err) {
     next(err);
   }
@@ -258,7 +259,7 @@ export async function loginPhone(req: Request, res: Response, next: NextFunction
     }
 
     const result = await authService.initiatePhoneLogin(parsed.data.phone, req.ip, req.headers['user-agent']);
-    sendSuccess(res, result, 'OTP sent to your phone number');
+    sendSuccess(res, null, 'OTP sent to your phone number');
   } catch (err) {
     next(err);
   }
@@ -326,17 +327,11 @@ export async function refreshToken(req: Request, res: Response, next: NextFuncti
       return;
     }
 
-    let payload: { sub: string };
-    try {
-      payload = verifyRefreshToken(rawToken);
-    } catch {
-      sendUnauthorized(res, 'Invalid or expired refresh token');
-      return;
-    }
-
+    const session = await db('sessions').where({ refresh_token: sha256Hash(rawToken), revoked: false }).first();
+    if (!session) { sendUnauthorized(res, 'Invalid refresh token'); return; }
     const { accessToken, refreshToken: newRefreshToken } = await authService.refreshAuthToken(
       rawToken,
-      payload.sub,
+      session.user_id,
       req.ip
     );
 
@@ -403,7 +398,7 @@ export async function forgotPasswordVerifyOtp(req: Request, res: Response, next:
     }
 
     const result = await authService.verifyPasswordResetOtp(parsed.data.email, parsed.data.otp);
-    sendSuccess(res, result, 'OTP code verified successfully');
+    sendSuccess(res, null, 'OTP code verified successfully');
   } catch (err) {
     next(err);
   }

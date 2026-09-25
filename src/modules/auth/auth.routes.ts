@@ -56,7 +56,7 @@ router.post('/login/phone', loginLimiter, controller.loginPhone);
 router.post('/login/email', loginLimiter, controller.loginEmail);
 
 /** POST /api/auth/google — Google OAuth token verification */
-router.post('/google', loginLimiter, controller.googleCallback);
+// Google login is disabled until server-side ID-token verification is configured.
 
 /** POST /api/auth/forgot-password/send-otp — Send password reset OTP code */
 router.post('/forgot-password/send-otp', passwordResetLimiter, controller.forgotPasswordSendOtp);

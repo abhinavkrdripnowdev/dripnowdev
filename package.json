@@ -1,17 +1,20 @@
 {
   "name": "dripnow-backend",
   "version": "1.0.0",
-  "description": "DripNow E-Commerce Platform — API Server",
+  "description": "DripNow E-Commerce Platform \u2014 API Server",
   "main": "dist/app.js",
   "scripts": {
     "dev": "tsx watch src/app.ts",
     "build": "tsc",
     "start": "node dist/app.js",
     "typecheck": "tsc --noEmit",
-    "migrate": "knex --knexfile src/db/knexfile.ts migrate:latest",
-    "migrate:rollback": "knex --knexfile src/db/knexfile.ts migrate:rollback",
-    "migrate:status": "knex --knexfile src/db/knexfile.ts migrate:status",
-    "seed": "knex --knexfile src/db/knexfile.ts seed:run"
+    "migrate": "npm run build && node scripts/migrate.cjs",
+    "migrate:status": "npm run build && node scripts/migration-status.cjs",
+    "seed": "npm run build && node database/seeds/categories.cjs",
+    "test": "npm run build && node --test tests/*.test.cjs",
+    "db:create": "node scripts/setup-mysql.cjs",
+    "admin:bootstrap": "npm run build && node scripts/bootstrap-admin.cjs",
+    "jobs": "npm run build && node dist/jobs/maintenance.js"
   },
   "keywords": [],
   "author": "DripNow Dev",
@@ -35,7 +38,8 @@
     "sqlite3": "^6.0.1",
     "uuid": "^14.0.2",
     "winston": "^3.19.0",
-    "zod": "^4.6.5"
+    "zod": "^4.6.5",
+    "cookie-parser": "^1.4.7"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -48,7 +52,6 @@
     "@types/passport": "^1.0.17",
     "@types/passport-google-oauth20": "^2.0.17",
     "@types/uuid": "^10.0.0",
-    "cookie-parser": "^1.4.7",
     "nodemon": "^3.1.14",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",

@@ -19,10 +19,11 @@ export const db = knex(
     ? {
         client: env.DB_CLIENT,
         connection: {
-          filename: path.resolve(env.DB_FILE),
+          filename: env.DB_FILE === ':memory:' ? ':memory:' : path.resolve(env.DB_FILE),
         },
         useNullAsDefault: true,
-        debug: env.NODE_ENV === 'development',
+        pool: { min: 1, max: 1, afterCreate: (connection: any, done: any) => { if (env.DB_CLIENT === 'better-sqlite3') { connection.pragma('foreign_keys = ON'); done(null, connection); } else connection.run('PRAGMA foreign_keys = ON', (error: any) => done(error, connection)); } },
+        debug: false,
       }
     : {
         client: 'mysql2',
@@ -45,7 +46,7 @@ export const db = knex(
           reapIntervalMillis: 1000,
           createRetryIntervalMillis: 200,
         },
-        debug: env.NODE_ENV === 'development',
+        debug: false,
       }
 );
 

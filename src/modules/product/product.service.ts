@@ -1,3 +1,4 @@
+import { Knex } from 'knex';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '../../config/database';
 import {
@@ -54,7 +55,8 @@ export async function createProduct(sellerId: string, data: CreateProductDTO): P
   const baseSlug = slugify(data.name);
   const slug = `${baseSlug}-${productId.substring(0, 8)}`;
 
-  await db('products').insert({
+  await db.transaction(async trx => {
+  await trx('products').insert({
     id: productId,
     seller_id: sellerId,
     category_id: data.category_id,
@@ -69,21 +71,21 @@ export async function createProduct(sellerId: string, data: CreateProductDTO): P
   // Create variants if provided, or default variant
   if (data.variants && data.variants.length > 0) {
     for (const v of data.variants) {
-      await addProductVariant(productId, v);
+      await addProductVariant(productId, v, trx);
     }
   } else {
     // Default variant
     await addProductVariant(productId, {
       sku: `SKU-${productId.substring(0, 8).toUpperCase()}`,
-      initial_quantity: 10,
-    });
+      initial_quantity: 0,
+    }, trx);
   }
 
   // Create images if provided
   if (data.images && data.images.length > 0) {
     for (let i = 0; i < data.images.length; i++) {
       const img = data.images[i];
-      await db('product_images').insert({
+      await trx('product_images').insert({
         id: uuidv4(),
         product_id: productId,
         image_url: img.image_url,
@@ -93,6 +95,7 @@ export async function createProduct(sellerId: string, data: CreateProductDTO): P
     }
   }
 
+  });
   return getProductById(productId) as Promise<Product>;
 }
 
@@ -134,7 +137,7 @@ export interface ProductFilterOptions {
 }
 
 export async function listPublicProducts(filters?: ProductFilterOptions): Promise<Product[]> {
-  let query = db('products').where({ 'products.is_active': true });
+  let query = db('products').join('seller_profiles as seller', 'seller.id', 'products.seller_id').where({ 'products.is_active': true, 'seller.status': 'approved' }).select('products.*');
 
   if (filters?.category_id) {
     query = query.where({ 'products.category_id': filters.category_id });
@@ -215,14 +218,14 @@ export async function deleteProduct(productId: string, sellerId: string): Promis
     throw new Error('Product not found or not owned by seller');
   }
 
-  await db('products').where({ id: productId }).delete();
+  await db('products').where({ id: productId }).update({ is_active: false, availability_status: 'discontinued' });
 }
 
 // ─── Variants & Inventory ───────────────────────────────────────────────────
 
-export async function addProductVariant(productId: string, data: CreateVariantDTO): Promise<ProductVariant> {
+export async function addProductVariant(productId: string, data: CreateVariantDTO, connection: Knex = db): Promise<ProductVariant> {
   const variantId = uuidv4();
-  await db('product_variants').insert({
+  await connection('product_variants').insert({
     id: variantId,
     product_id: productId,
     sku: data.sku,
@@ -234,7 +237,7 @@ export async function addProductVariant(productId: string, data: CreateVariantDT
 
   // Create inventory record
   const inventoryId = uuidv4();
-  await db('inventory').insert({
+  await connection('inventory').insert({
     id: inventoryId,
     variant_id: variantId,
     quantity: data.initial_quantity ?? 0,
@@ -242,8 +245,8 @@ export async function addProductVariant(productId: string, data: CreateVariantDT
     low_stock_threshold: data.low_stock_threshold ?? 5,
   });
 
-  const variant = await db('product_variants').where({ id: variantId }).first();
-  const inventory = await db('inventory').where({ variant_id: variantId }).first();
+  const variant = await connection('product_variants').where({ id: variantId }).first();
+  const inventory = await connection('inventory').where({ variant_id: variantId }).first();
 
   return {
     ...variant,

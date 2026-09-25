@@ -30,6 +30,7 @@ export function verifyAccessToken(token: string): AccessTokenPayload {
   return jwt.verify(token, env.JWT_ACCESS_SECRET, {
     issuer: 'dripnow',
     audience: 'dripnow-client',
+    algorithms: ['HS256'],
   }) as AccessTokenPayload;
 }
 
@@ -55,6 +56,8 @@ export async function createSession(
   deviceInfo?: string,
   ipAddress?: string
 ): Promise<{ accessToken: string; refreshToken: string; sessionId: number }> {
+  const account = await db('users').where({ id: userId }).first();
+  if (!account || account.status !== 'active' || ['REJECTED', 'SUSPENDED', 'BLOCKED'].includes(account.account_status)) throw Object.assign(new Error('Account inactive'), { statusCode: 403 });
   const rawRefreshToken = generateSecureToken(48);
   const hashedRefreshToken = sha256Hash(rawRefreshToken);
 
@@ -92,11 +95,14 @@ export async function rotateRefreshToken(
     .first();
 
   if (!session || new Date(session.expires_at) < new Date()) {
-    throw new Error('Invalid or expired refresh token');
+    throw Object.assign(new Error('Invalid or expired refresh token'), { statusCode: 401 });
   }
 
-  // Revoke old session
-  await db('sessions').where({ id: session.id }).update({ revoked: true });
+  const user = await db('users').where({ id: userId, status: 'active' }).first();
+  if (!user) throw Object.assign(new Error('Account is inactive'), { statusCode: 401 });
+  // Compare-and-swap: exactly one concurrent refresh can consume a token.
+  const consumed = await db('sessions').where({ id: session.id, revoked: false }).update({ revoked: true });
+  if (!consumed) throw Object.assign(new Error('Refresh token already consumed'), { statusCode: 401 });
 
   // Create new session
   return createSession(userId, roles, session.device_info, ipAddress);

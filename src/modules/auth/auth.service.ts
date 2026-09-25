@@ -54,6 +54,7 @@ async function buildAuthenticatedUser(userId: string): Promise<AuthenticatedUser
     phone: user.phone,
     avatar_url: user.avatar_url,
     status: user.status,
+    account_status: user.account_status,
     phone_verified: user.phone_verified,
     email_verified: user.email_verified,
     roles,
@@ -123,6 +124,7 @@ export async function registerCustomer(
   const userId = uuidv4();
 
   await db.transaction(async (trx) => {
+    await trx('consumed_proofs').insert([input.phone_token, input.email_token].map(token => ({ token_hash: sha256Hash(token), consumed_at: new Date() })));
     await trx('users').insert({
       id: userId,
       username: input.username,
@@ -132,6 +134,7 @@ export async function registerCustomer(
       phone_verified: true,
       email_verified: true,
       status: 'active',
+      account_status: 'APPROVED',
     });
 
     // Assign customer role (id=1)
@@ -177,6 +180,7 @@ export async function registerSeller(
   const userId = uuidv4();
 
   await db.transaction(async (trx) => {
+    await trx('consumed_proofs').insert([input.phone_token, input.email_token].map(token => ({ token_hash: sha256Hash(token), consumed_at: new Date() })));
     await trx('users').insert({
       id: userId,
       username: input.username,
@@ -186,6 +190,7 @@ export async function registerSeller(
       phone_verified: true,
       email_verified: true,
       status: 'active',
+      account_status: 'APPROVED',
     });
 
     // Assign seller role (id=2)
@@ -242,6 +247,7 @@ export async function registerDeliveryPartner(
   const docs = input.documents_json ? { ...input.documents_json, vehicle_type: input.vehicle_type, license_number: input.license_number } : { vehicle_type: input.vehicle_type, license_number: input.license_number };
 
   await db.transaction(async (trx) => {
+    await trx('consumed_proofs').insert([input.phone_token, input.email_token].map(token => ({ token_hash: sha256Hash(token), consumed_at: new Date() })));
     await trx('users').insert({
       id: userId,
       username: input.username,
@@ -251,6 +257,7 @@ export async function registerDeliveryPartner(
       phone_verified: true,
       email_verified: true,
       status: 'active',
+      account_status: 'APPROVED',
     });
 
     // Assign delivery_partner role (id=3)
@@ -343,7 +350,7 @@ export async function initiatePhoneLogin(
 ): Promise<{ otp: string }> {
   const user = await db('users').where({ phone }).first();
   if (!user) throw Object.assign(new Error('No account found with this phone number'), { statusCode: 404 });
-  if (user.status === 'suspended') throw Object.assign(new Error('Your account has been suspended'), { statusCode: 403 });
+  if (user.status !== 'active') throw Object.assign(new Error('Your account has been suspended'), { statusCode: 403 });
 
   const otp = await sendPhoneOtp(user.id, phone);
   createAuditLog({ userId: user.id, action: 'phone_otp_sent', ipAddress: ip, userAgent });
@@ -359,6 +366,7 @@ export async function verifyOtpAndLogin(
   const user = await db('users').where({ phone }).first();
   if (!user) throw Object.assign(new Error('User not found'), { statusCode: 404 });
 
+  if (user.status !== 'active' || !user.email_verified) throw Object.assign(new Error('Account is not verified or active'), { statusCode: 403 });
   const result = await verifyPhoneOtp(user.id, otp);
   if (!result.valid) throw Object.assign(new Error(result.reason), { statusCode: 400 });
 
@@ -390,7 +398,7 @@ export async function loginWithEmail(
     throw Object.assign(new Error('Invalid email or password'), { statusCode: 401 });
   }
 
-  if (user.status === 'suspended') {
+  if (user.status !== 'active') {
     throw Object.assign(new Error('Your account has been suspended'), { statusCode: 403 });
   }
 
@@ -408,17 +416,20 @@ export async function loginWithEmail(
   const isValid = await comparePassword(input.password, credential.password_hash);
 
   if (!isValid) {
-    const newAttempts = (credential.failed_attempts ?? 0) + 1;
-    const updates: Record<string, unknown> = { failed_attempts: newAttempts };
+    await db('credentials').where({ user_id: user.id }).increment('failed_attempts', 1);
+    const currentCredential = await db('credentials').where({ user_id: user.id }).first();
+    const newAttempts = currentCredential.failed_attempts;
+    const updates: Record<string, unknown> = {};
 
     if (newAttempts >= MAX_FAILED_ATTEMPTS) {
       const lockedUntil = new Date();
       lockedUntil.setMinutes(lockedUntil.getMinutes() + LOCK_DURATION_MINUTES);
       updates.locked_until = lockedUntil;
       createAuditLog({ userId: user.id, action: 'account_locked', ipAddress: ip, userAgent });
+      await createSecurityEvent({ userId: user.id, eventType: 'account_locked', severity: 'warning', ipAddress: ip });
     }
 
-    await db('credentials').where({ user_id: user.id }).update(updates);
+    if (Object.keys(updates).length) await db('credentials').where({ user_id: user.id }).update(updates);
     createAuditLog({ userId: user.id, action: 'login_failed_email', ipAddress: ip, userAgent });
     throw Object.assign(new Error('Invalid email or password'), { statusCode: 401 });
   }
@@ -586,6 +597,7 @@ export async function resetPasswordWithToken(
   const newHash = await hashPassword(newPassword);
 
   await db.transaction(async (trx) => {
+    await trx('consumed_proofs').insert({ token_hash: sha256Hash(resetToken), consumed_at: new Date() });
     // Update password credential
     await trx('credentials')
       .where({ user_id: user.id })

@@ -1,9 +1,10 @@
-import { Request, Response } from 'express';
+import { createOfferSchema, createComboOfferSchema } from './offer.validators';
+import { Request, Response, NextFunction } from 'express';
 import { sendSuccess, sendError, sendNotFound, sendBadRequest } from '../../utils/response';
 import * as offerService from './offer.service';
 import * as sellerService from '../seller/seller.service';
 
-export async function createOffer(req: Request, res: Response): Promise<void> {
+export async function createOffer(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const userId = req.user!.id;
     const seller = await sellerService.getSellerProfileByUserId(userId);
@@ -12,14 +13,14 @@ export async function createOffer(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const offer = await offerService.createSellerOffer(seller.id, req.body);
+    const offer = await offerService.createSellerOffer(seller.id, createOfferSchema.strict().parse(req.body));
     sendSuccess(res, offer, 'Offer created successfully', 201);
   } catch (error: any) {
-    sendError(res, error.message || 'Failed to create offer');
+    next(error);
   }
 }
 
-export async function getSellerOffers(req: Request, res: Response): Promise<void> {
+export async function getSellerOffers(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const userId = req.user!.id;
     const seller = await sellerService.getSellerProfileByUserId(userId);
@@ -31,11 +32,11 @@ export async function getSellerOffers(req: Request, res: Response): Promise<void
     const offers = await offerService.getSellerOffers(seller.id);
     sendSuccess(res, offers);
   } catch (error: any) {
-    sendError(res, error.message || 'Failed to fetch seller offers');
+    next(error);
   }
 }
 
-export async function getOfferByCode(req: Request, res: Response): Promise<void> {
+export async function getOfferByCode(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const code = req.params.code as string;
     const offer = await offerService.getOfferByCode(code);
@@ -45,11 +46,11 @@ export async function getOfferByCode(req: Request, res: Response): Promise<void>
     }
     sendSuccess(res, offer);
   } catch (error: any) {
-    sendError(res, error.message || 'Failed to validate offer code');
+    next(error);
   }
 }
 
-export async function createComboOffer(req: Request, res: Response): Promise<void> {
+export async function createComboOffer(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const userId = req.user!.id;
     const seller = await sellerService.getSellerProfileByUserId(userId);
@@ -58,14 +59,14 @@ export async function createComboOffer(req: Request, res: Response): Promise<voi
       return;
     }
 
-    const combo = await offerService.createComboOffer(seller.id, req.body);
+    const combo = await offerService.createComboOffer(seller.id, createComboOfferSchema.strict().parse(req.body));
     sendSuccess(res, combo, 'Combo offer created successfully', 201);
   } catch (error: any) {
-    sendError(res, error.message || 'Failed to create combo offer');
+    next(error);
   }
 }
 
-export async function getSellerComboOffers(req: Request, res: Response): Promise<void> {
+export async function getSellerComboOffers(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const userId = req.user!.id;
     const seller = await sellerService.getSellerProfileByUserId(userId);
@@ -77,6 +78,6 @@ export async function getSellerComboOffers(req: Request, res: Response): Promise
     const combos = await offerService.getSellerComboOffers(seller.id);
     sendSuccess(res, combos);
   } catch (error: any) {
-    sendError(res, error.message || 'Failed to fetch combo offers');
+    next(error);
   }
 }

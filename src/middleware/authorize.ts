@@ -16,7 +16,7 @@ export function authorize(...allowedRoles: RoleName[]) {
     }
 
     const userRoles = req.user.roles ?? [];
-    const hasRole = allowedRoles.some((role) => userRoles.includes(role));
+    const hasRole = allowedRoles.some((role) => userRoles.includes(role) || (role === 'manager' && userRoles.includes('admin')));
 
     if (!hasRole) {
       sendForbidden(res, 'You do not have permission to access this resource');

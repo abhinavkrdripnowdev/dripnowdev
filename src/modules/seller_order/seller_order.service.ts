@@ -1,3 +1,5 @@
+import { updateOrderProgress } from '../../services/orderProgress.service';
+import { fail } from '../../utils/httpError';
 import { db } from '../../config/database';
 import {
   SellerOrder,
@@ -78,44 +80,18 @@ export async function updateSellerOrderStatus(
   sellerId: string,
   dto: UpdateSellerOrderStatusDTO
 ): Promise<SellerOrder> {
-  const order = await db('seller_orders')
-    .where({ id: orderId, seller_id: sellerId })
-    .first();
-
-  if (!order) {
-    throw new Error('Seller order not found');
-  }
-
-  // Validate allowed state transitions
-  const currentStatus: SellerOrderStatus = order.status;
-  const allowedTransitions: Record<SellerOrderStatus, SellerOrderStatus[]> = {
-    new: ['accepted', 'cancelled'],
-    accepted: ['preparing', 'cancelled'],
-    preparing: ['ready_for_pickup', 'cancelled'],
-    ready_for_pickup: ['completed', 'cancelled'],
-    completed: [],
-    cancelled: [],
-  };
-
-  if (!allowedTransitions[currentStatus].includes(dto.status)) {
-    throw new Error(`Invalid status transition from '${currentStatus}' to '${dto.status}'`);
-  }
-
-  await db('seller_orders')
-    .where({ id: orderId })
-    .update({
-      status: dto.status,
-      notes: dto.notes ?? order.notes,
-      updated_at: db.fn.now(),
-    });
-
-  // Create audit log for order status change
-  const sellerProfile = await db('seller_profiles').where({ id: order.seller_id }).first();
-  await db('audit_logs').insert({
-    user_id: sellerProfile?.user_id ?? null,
-    action: `SELLER_ORDER_STATUS_${dto.status.toUpperCase()}`,
-    metadata: JSON.stringify({ entity_type: 'seller_order', entity_id: orderId, previous_status: currentStatus, new_status: dto.status, notes: dto.notes }),
+  const snapshot = await db('seller_orders').where({ id: orderId, seller_id: sellerId }).first();
+  if (!snapshot) fail('Seller order not found', 404);
+  await db.transaction(async trx => {
+    const parent = await trx('orders').where({ id: snapshot.parent_order_id }).forUpdate().first();
+    const order = await trx('seller_orders').where({ id: orderId, seller_id: sellerId }).forUpdate().first();
+    const seller = await trx('seller_profiles').where({ id: sellerId, status: 'approved' }).first();
+    if (!seller || !parent || parent.status === 'CANCELLED' || (parent.payment_method !== 'cod' && parent.payment_status !== 'paid')) fail('Order is not confirmed', 409);
+    const transitions: Record<string, string[]> = { new: ['accepted'], accepted: ['preparing'], preparing: ['ready_for_pickup'], ready_for_pickup: [], completed: [], cancelled: [] };
+    if (!transitions[order.status]?.includes(dto.status)) fail('Invalid order transition', 409);
+    await trx('seller_orders').where({ id: orderId }).update({ status: dto.status, notes: dto.notes ?? order.notes, updated_at: trx.fn.now() });
+    await updateOrderProgress(trx, parent.id);
+    await trx('audit_logs').insert({ user_id: seller.user_id, action: `SELLER_ORDER_${dto.status.toUpperCase()}`, metadata: JSON.stringify({ seller_order_id: orderId, from: order.status }) });
   });
-
   return (await getSellerOrderById(orderId, sellerId)) as SellerOrder;
 }

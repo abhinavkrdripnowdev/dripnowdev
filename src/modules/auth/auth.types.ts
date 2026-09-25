@@ -19,6 +19,7 @@ export interface RoleRecord {
 }
 
 export interface AuthenticatedUser {
+  account_status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED' | 'BLOCKED';
   id: string;
   username: string | null;
   full_name: string;

@@ -1,4 +1,10 @@
+import { migrateDatabase } from './db/migrate';
+import { orderRequestRoutes, adminOrderRequestRoutes } from './modules/order/order.requests';
+import adminSecurityRoutes from './modules/admin/admin.security.routes';
+import { maintenance } from './jobs/maintenance';
 import express from 'express';
+import paymentRoutes, { paymentWebhook } from './modules/payment/payment.routes';
+import deliveryRoutes, { deliveryAdminRoutes } from './modules/delivery/delivery.routes';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
@@ -13,6 +19,8 @@ import adminSellerRoutes from './modules/admin/admin.seller.routes';
 import productRoutes from './modules/product/product.routes';
 import sellerOrderRoutes from './modules/seller_order/seller_order.routes';
 import offerRoutes from './modules/offer/offer.routes';
+import cartRoutes from './modules/cart/cart.routes';
+import orderRoutes from './modules/order/order.routes';
 import { checkDatabaseConnection } from './config/database';
 
 const app = express();
@@ -26,11 +34,12 @@ app.use(
     origin: env.CLIENT_URL,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key'],
   })
 );
 
 // ─── Body Parsing ─────────────────────────────────────────────────────────────
+app.post('/api/v1/payments/webhook', express.raw({ type: 'application/json', limit: '1mb' }), paymentWebhook);
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
@@ -57,6 +66,14 @@ app.use('/api/v1/seller', sellerRoutes);
 app.use('/api/v1/admin/sellers', adminSellerRoutes);
 app.use('/api/v1/products', productRoutes);
 app.use('/api/v1/offers', offerRoutes);
+app.use('/api/v1/cart', cartRoutes);
+app.use('/api/v1/orders', orderRequestRoutes);
+app.use('/api/v1/orders', orderRoutes);
+app.use('/api/v1/payments', paymentRoutes);
+app.use('/api/v1/delivery', deliveryRoutes);
+app.use('/api/v1/admin/delivery', deliveryAdminRoutes);
+app.use('/api/v1/admin/order-requests', adminOrderRequestRoutes);
+app.use('/api/v1/admin', adminSecurityRoutes);
 
 // ─── 404 Handler ──────────────────────────────────────────────────────────────
 app.use(notFoundHandler);
@@ -72,22 +89,27 @@ const PORT = Number(env.PORT);
 
 async function startServer() {
   try {
-    await db.migrate.latest({
-      directory: path.join(__dirname, 'db/migrations'),
-    });
+    await migrateDatabase();
     console.log('✅ Database migrations up-to-date');
   } catch (err) {
-    console.error('❌ Database migration error:', err);
+    console.error('Database migration error:', err);
+    await db.destroy();
+    process.exitCode = 1;
+    return;
   }
 
-  app.listen(PORT, () => {
+  const timer = setInterval(() => { maintenance().catch(error => console.error('Maintenance failed', error)); }, 60000);
+  timer.unref();
+  const server = app.listen(PORT, () => {
     console.log(`\n🚀 DripNow API running on http://localhost:${PORT}`);
     console.log(`   Environment: ${env.NODE_ENV}`);
     console.log(`   Health check: http://localhost:${PORT}/health`);
     console.log(`   Last Reload Time: ${new Date().toISOString()}\n`);
   });
+  const shutdown = () => { clearInterval(timer); server.close(() => { void db.destroy(); }); };
+  process.once('SIGTERM', shutdown); process.once('SIGINT', shutdown);
 }
 
-startServer();
+if (require.main === module) startServer();
 
 export default app;

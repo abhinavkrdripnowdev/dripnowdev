@@ -7,15 +7,8 @@ function createTransporter() {
   const pass = env.SMTP_PASS || env.RESEND_API_KEY;
 
   if (!host || !pass) {
-    // Fallback to Ethereal mock transport in development
-    return nodemailer.createTransport({
-      host: 'smtp.ethereal.email',
-      port: 587,
-      auth: {
-        user: 'mock@ethereal.email',
-        pass: 'mockpassword',
-      },
-    });
+    if (env.NODE_ENV === 'production') throw new Error('Email provider is not configured');
+    return nodemailer.createTransport({ jsonTransport: true });
   }
 
   const port = Number(env.SMTP_PORT ?? 465);

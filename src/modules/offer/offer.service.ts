@@ -8,6 +8,9 @@ import {
 } from './offer.types';
 
 export async function createSellerOffer(sellerId: string, data: CreateOfferDTO): Promise<SellerOffer> {
+  if (data.offer_type === 'percentage' && data.discount_value > 100) throw new Error('Percentage must not exceed 100');
+  if ((data.start_date && !Number.isFinite(Date.parse(data.start_date))) || (data.end_date && !Number.isFinite(Date.parse(data.end_date)))) throw new Error('Invalid offer dates');
+  if (data.start_date && data.end_date && Date.parse(data.end_date) <= Date.parse(data.start_date)) throw new Error('Offer end must follow start');
   const offerId = uuidv4();
   await db('seller_offers').insert({
     id: offerId,
@@ -44,7 +47,7 @@ export async function getOfferByCode(code: string): Promise<SellerOffer | null> 
     .where({ code: code.toUpperCase(), is_active: true })
     .first();
 
-  if (!offer) return null;
+  if (!offer || (offer.start_date && new Date(offer.start_date) > new Date()) || (offer.end_date && new Date(offer.end_date) <= new Date())) return null;
 
   return {
     ...offer,
@@ -54,6 +57,12 @@ export async function getOfferByCode(code: string): Promise<SellerOffer | null> 
 }
 
 export async function createComboOffer(sellerId: string, data: CreateComboOfferDTO): Promise<ComboOffer> {
+  const unique = new Set(data.items.map(i => i.product_id));
+  if (unique.size !== data.items.length) throw new Error('Combo products must be distinct');
+  for (const item of data.items) {
+    if (!await db('products').where({ id: item.product_id, seller_id: sellerId }).first()) throw new Error('Combo products must belong to this seller');
+    if (item.variant_id && !await db('product_variants').where({ id: item.variant_id, product_id: item.product_id }).first()) throw new Error('Invalid combo variant');
+  }
   const comboId = uuidv4();
   await db('combo_offers').insert({
     id: comboId,

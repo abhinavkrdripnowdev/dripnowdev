@@ -1,0 +1,58 @@
+// Optional full browser smoke test. Set PLAYWRIGHT_MODULE to your Playwright package path.
+const assert = require('node:assert/strict');
+const path = require('node:path');
+const fs = require('node:fs');
+const { randomUUID } = require('node:crypto');
+Object.assign(process.env, { NODE_ENV: 'test', DB_CLIENT: 'better-sqlite3', DB_FILE: ':memory:', JWT_ACCESS_SECRET: 'browser-test-access-'.repeat(4), JWT_REFRESH_SECRET: 'browser-test-refresh-'.repeat(4), SMTP_HOST: '', SMTP_PASS: '', RESEND_API_KEY: '' });
+const { db } = require('../dist/config/database');
+const { migrateDatabase } = require('../dist/db/migrate');
+const { generateVerificationProof } = require('../dist/services/otp.service');
+const { registerCustomer } = require('../dist/modules/auth/auth.service');
+const { createProduct } = require('../dist/modules/product/product.service');
+const api = require('../dist/app').default;
+const express = require('express');
+let server, browser;
+(async () => {
+  await migrateDatabase();
+  const customer = await registerCustomer({ username: 'browser_customer', full_name: 'Browser Customer', email: 'browser@example.test', phone: '+919999999991', password: 'BrowserPassword123!', email_token: generateVerificationProof('browser@example.test'), phone_token: generateVerificationProof('+919999999991') });
+  const sellerUser = randomUUID(), seller = randomUUID();
+  await db('users').insert({ id: sellerUser, full_name: 'Browser Seller', status: 'active', account_status: 'APPROVED', email_verified: true, phone_verified: true });
+  await db('user_roles').insert({ user_id: sellerUser, role_id: 2 });
+  await db('seller_profiles').insert({ id: seller, user_id: sellerUser, business_name: 'Browser Store', status: 'approved' });
+  await db('seller_locations').insert({ id: randomUUID(), seller_id: seller, address_line1: 'Pickup street', city: 'Mumbai', state: 'MH', postal_code: '400001', latitude: 19.07, longitude: 72.87 });
+  await db('categories').insert({ id: 1, name: 'Fashion', slug: 'fashion' });
+  await createProduct(seller, { name: 'Browser Test Dress', category_id: 1, base_price: 700, description: 'A test product for the browser checkout scenario.', variants: [{ sku: 'BROWSER-SKU', size: 'M', color: 'Blue', initial_quantity: 10 }], images: [{ image_url: '/favicon.svg' }] });
+  await db('addresses').insert({ id: randomUUID(), user_id: customer.user.id, address_line1: 'Browser delivery address', city: 'Mumbai', state: 'MH', postal_code: '400001', latitude: 19.08, longitude: 72.88, is_default: true });
+  const app = express(); app.use((req,res,next) => req.path.startsWith('/api/') ? api(req,res,next) : next());
+  const root = path.resolve(__dirname, '../../frontend/dist'); app.use(express.static(root)); app.get('/{*path}', (_req,res) => res.sendFile(path.join(root, 'index.html')));
+  server = app.listen(0); await new Promise(resolve => server.once('listening', resolve));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+  browser = await chromium.launch({ headless: true, ...(process.env.BROWSER_EXECUTABLE ? { executablePath: process.env.BROWSER_EXECUTABLE } : {}) });
+  const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+  const errors = []; page.on('pageerror', e => errors.push(e.message));
+  page.on('dialog', dialog => dialog.accept());
+  await page.goto(base); await page.getByRole('button', { name: 'Browser Test Dress', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Add to Cart', exact: true }).first().click();
+  await page.getByRole('status').filter({ hasText: 'Added to your guest cart' }).waitFor();
+  await page.evaluate(({ user, accessToken }) => {
+    localStorage.setItem('accessToken', accessToken);
+    localStorage.setItem('dripnow-auth', JSON.stringify({ state: { user, isAuthenticated: true }, version: 0 }));
+  }, customer);
+  await page.goto(base + '/dashboard');
+  await page.getByRole('button', { name: 'Browser Test Dress', exact: true }).waitFor();
+  // Wait for the persisted guest cart to be merged, then open it.
+  await page.waitForFunction(() => sessionStorage.getItem('guestCart') === '[]');
+  await page.locator('#open-cart-btn').click();
+  await page.getByRole('button', { name: 'Review total', exact: true }).click();
+  await page.getByRole('button', { name: /Place Order \(₹/ }).and(page.locator(':enabled')).waitFor();
+  assert.equal(await page.getByRole('button', { name: /Place Order \(₹/ }).isEnabled(), true);
+  const artifacts = path.join(__dirname, 'artifacts'); fs.mkdirSync(artifacts, { recursive: true });
+  await page.screenshot({ path: path.join(artifacts, 'checkout.png'), fullPage: true });
+  await page.getByRole('button', { name: /Place Order \(₹/ }).click();
+  await page.getByText('PAYMENT_CONFIRMED', { exact: true }).waitFor();
+  assert.equal((await db('orders').where({ customer_id: customer.user.id })).length, 1);
+  assert.deepEqual(errors, []);
+  await page.screenshot({ path: path.join(artifacts, 'orders.png'), fullPage: true });
+  console.log('Browser smoke passed: guest catalog → guest cart → authenticated cart → quote → COD order; no page errors.');
+})().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => { if (browser) await browser.close(); if (server) await new Promise(resolve => server.close(resolve)); await db.destroy(); });

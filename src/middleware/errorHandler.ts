@@ -1,5 +1,6 @@
+import { ZodError } from 'zod';
 import { Request, Response, NextFunction } from 'express';
-import { sendServerError } from '../utils/response';
+import { sendError } from '../utils/response';
 import { env } from '../config/env';
 
 export interface AppError extends Error {
@@ -13,9 +14,10 @@ export function errorHandler(
   res: Response,
   _next: NextFunction
 ): void {
-  const statusCode = err.statusCode ?? 500;
+  if (['ER_DUP_ENTRY', 'SQLITE_CONSTRAINT_UNIQUE', 'SQLITE_CONSTRAINT_PRIMARYKEY'].includes((err as any).code)) { sendError(res, 'This action has already been completed or conflicts with existing data', 409); return; }
+  const statusCode = err instanceof ZodError ? 422 : err.statusCode ?? 500;
   const message =
-    err.isOperational || env.NODE_ENV === 'development'
+    statusCode < 500 || err.isOperational || env.NODE_ENV === 'development'
       ? err.message
       : 'Internal server error';
 
@@ -25,7 +27,7 @@ export function errorHandler(
     });
   }
 
-  sendServerError(res, message);
+  sendError(res, message, statusCode);
 }
 
 export function notFoundHandler(req: Request, res: Response): void {

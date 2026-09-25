@@ -22,7 +22,7 @@ export function authorizePermission(...requiredPermissions: string[]) {
         .where('user_roles.user_id', req.user.id)
         .pluck('permissions.name');
 
-      const hasPermission = requiredPermissions.some((perm) => userPermissions.includes(perm));
+      const hasPermission = requiredPermissions.every((perm) => userPermissions.includes(perm));
 
       if (!hasPermission) {
         sendForbidden(res, 'You do not have the required permission to perform this action');
