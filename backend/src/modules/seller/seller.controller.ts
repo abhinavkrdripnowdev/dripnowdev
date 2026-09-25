@@ -1,18 +1,18 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { sendSuccess, sendError, sendNotFound, sendBadRequest } from '../../utils/response';
 import * as sellerService from './seller.service';
 
-export async function registerSeller(req: Request, res: Response): Promise<void> {
+export async function registerSeller(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const userId = req.user!.id;
     const profile = await sellerService.createOrUpdateSellerProfile(userId, req.body);
     sendSuccess(res, profile, 'Seller application submitted successfully', 201);
   } catch (error: any) {
-    sendError(res, error.message || 'Failed to register seller');
+    next(error);
   }
 }
 
-export async function getMyProfile(req: Request, res: Response): Promise<void> {
+export async function getMyProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const userId = req.user!.id;
     const profile = await sellerService.getSellerProfileByUserId(userId);
@@ -25,11 +25,11 @@ export async function getMyProfile(req: Request, res: Response): Promise<void> {
 
     sendSuccess(res, { ...profile, documents, location });
   } catch (error: any) {
-    sendError(res, error.message || 'Failed to retrieve seller profile');
+    next(error);
   }
 }
 
-export async function updateMyProfile(req: Request, res: Response): Promise<void> {
+export async function updateMyProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const userId = req.user!.id;
     const profile = await sellerService.getSellerProfileByUserId(userId);
@@ -41,11 +41,11 @@ export async function updateMyProfile(req: Request, res: Response): Promise<void
     const updated = await sellerService.updateSellerProfile(profile.id, req.body);
     sendSuccess(res, updated, 'Seller profile updated successfully');
   } catch (error: any) {
-    sendError(res, error.message || 'Failed to update seller profile');
+    next(error);
   }
 }
 
-export async function addDocument(req: Request, res: Response): Promise<void> {
+export async function addDocument(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const userId = req.user!.id;
     const profile = await sellerService.getSellerProfileByUserId(userId);
@@ -61,11 +61,11 @@ export async function addDocument(req: Request, res: Response): Promise<void> {
     );
     sendSuccess(res, doc, 'Document uploaded successfully', 201);
   } catch (error: any) {
-    sendError(res, error.message || 'Failed to upload document');
+    next(error);
   }
 }
 
-export async function updateLocation(req: Request, res: Response): Promise<void> {
+export async function updateLocation(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const userId = req.user!.id;
     const profile = await sellerService.getSellerProfileByUserId(userId);
@@ -77,11 +77,11 @@ export async function updateLocation(req: Request, res: Response): Promise<void>
     const location = await sellerService.addOrUpdateSellerLocation(profile.id, req.body);
     sendSuccess(res, location, 'Store location updated successfully');
   } catch (error: any) {
-    sendError(res, error.message || 'Failed to update store location');
+    next(error);
   }
 }
 
-export async function getDashboardOverview(req: Request, res: Response): Promise<void> {
+export async function getDashboardOverview(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const userId = req.user!.id;
     const profile = await sellerService.getSellerProfileByUserId(userId);
@@ -93,6 +93,6 @@ export async function getDashboardOverview(req: Request, res: Response): Promise
     const overview = await sellerService.getSellerDashboardOverview(profile.id);
     sendSuccess(res, overview);
   } catch (error: any) {
-    sendError(res, error.message || 'Failed to fetch dashboard overview');
+    next(error);
   }
 }

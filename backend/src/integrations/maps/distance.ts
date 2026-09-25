@@ -13,6 +13,7 @@ export function calculateHaversineDistance(
   lat2: number,
   lon2: number
 ): number {
+  if (![lat1, lon1, lat2, lon2].every(Number.isFinite) || Math.abs(lat1) > 90 || Math.abs(lat2) > 90 || Math.abs(lon1) > 180 || Math.abs(lon2) > 180) throw Object.assign(new Error('Invalid coordinates'), { statusCode: 422 });
   const R = 6371; // Earth's radius in kilometers
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
@@ -38,6 +39,7 @@ export function calculateDistance(
   lon2: number,
   averageSpeedKmH = 30 // Default 30 km/h urban speed
 ): DistanceCalculationResult {
+  if (!Number.isFinite(averageSpeedKmH) || averageSpeedKmH <= 0) throw Object.assign(new Error('Invalid travel speed'), { statusCode: 422 });
   const distanceKm = calculateHaversineDistance(lat1, lon1, lat2, lon2);
   const distanceMeters = Math.round(distanceKm * 1000);
   const durationHours = distanceKm / averageSpeedKmH;

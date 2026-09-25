@@ -1,3 +1,5 @@
+import { validate } from '../../middleware/validate';
+import { updateProfileSchema, createAddressSchema, updateAddressSchema, addToWishlistSchema } from './customer.validators';
 import { Router } from 'express';
 import * as controller from './customer.controller';
 import { authenticate } from '../../middleware/authenticate';
@@ -11,16 +13,16 @@ router.use(authenticate);
 router.get('/profile', controller.getProfile);
 
 /** PUT /api/v1/customer/profile — Update customer full name / avatar */
-router.put('/profile', controller.updateProfile);
+router.put('/profile', validate(updateProfileSchema.strict()), controller.updateProfile);
 
 /** GET /api/v1/customer/addresses — List all saved customer delivery addresses */
 router.get('/addresses', controller.getAddresses);
 
 /** POST /api/v1/customer/addresses — Add a new delivery address */
-router.post('/addresses', controller.createAddress);
+router.post('/addresses', validate(createAddressSchema.strict()), controller.createAddress);
 
 /** PUT /api/v1/customer/addresses/:id — Update an existing address */
-router.put('/addresses/:id', controller.updateAddress);
+router.put('/addresses/:id', validate(updateAddressSchema.strict()), controller.updateAddress);
 
 /** DELETE /api/v1/customer/addresses/:id — Delete an address */
 router.delete('/addresses/:id', controller.deleteAddress);
@@ -32,7 +34,7 @@ router.patch('/addresses/:id/default', controller.setDefaultAddress);
 router.get('/wishlist', controller.getWishlist);
 
 /** POST /api/v1/customer/wishlist — Add product to wishlist */
-router.post('/wishlist', controller.addToWishlist);
+router.post('/wishlist', validate(addToWishlistSchema.strict()), controller.addToWishlist);
 
 /** DELETE /api/v1/customer/wishlist/:productId — Remove product from wishlist */
 router.delete('/wishlist/:productId', controller.removeFromWishlist);

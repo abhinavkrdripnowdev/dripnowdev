@@ -835,3 +835,10 @@
   font-size: 0.78rem;
   color: #999;
 }
+
+.customer-app input, .customer-app select { padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font: inherit; }
+.product-card__title button { border: 0; background: none; text-align: left; font: inherit; color: inherit; cursor: pointer; padding: 0; }
+.product-card > button:not(.add-cart-btn) { border: 1px solid #cbd5e1; border-radius: 6px; background: white; padding: 6px; cursor: pointer; }
+.cart-drawer__footer .checkout-btn { margin-top: 10px; }
+.cart-drawer { max-height: 100dvh; }
+.cart-drawer__footer { max-height: 65dvh; overflow-y: auto; }

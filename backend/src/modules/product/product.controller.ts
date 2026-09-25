@@ -1,31 +1,32 @@
-import { Request, Response } from 'express';
+import { db } from '../../config/database';
+import { Request, Response, NextFunction } from 'express';
 import { sendSuccess, sendError, sendNotFound, sendBadRequest } from '../../utils/response';
 import * as productService from './product.service';
 import * as sellerService from '../seller/seller.service';
 
 // ─── Categories ─────────────────────────────────────────────────────────────
 
-export async function createCategory(req: Request, res: Response): Promise<void> {
+export async function createCategory(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const category = await productService.createCategory(req.body);
     sendSuccess(res, category, 'Category created successfully', 201);
   } catch (error: any) {
-    sendError(res, error.message || 'Failed to create category');
+    next(error);
   }
 }
 
-export async function listCategories(req: Request, res: Response): Promise<void> {
+export async function listCategories(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const categories = await productService.listCategories();
     sendSuccess(res, categories);
   } catch (error: any) {
-    sendError(res, error.message || 'Failed to fetch categories');
+    next(error);
   }
 }
 
 // ─── Products ───────────────────────────────────────────────────────────────
 
-export async function createProduct(req: Request, res: Response): Promise<void> {
+export async function createProduct(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const userId = req.user!.id;
     const seller = await sellerService.getSellerProfileByUserId(userId);
@@ -37,11 +38,11 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
     const product = await productService.createProduct(seller.id, req.body);
     sendSuccess(res, product, 'Product created successfully', 201);
   } catch (error: any) {
-    sendError(res, error.message || 'Failed to create product');
+    next(error);
   }
 }
 
-export async function getSellerProducts(req: Request, res: Response): Promise<void> {
+export async function getSellerProducts(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const userId = req.user!.id;
     const seller = await sellerService.getSellerProfileByUserId(userId);
@@ -53,11 +54,11 @@ export async function getSellerProducts(req: Request, res: Response): Promise<vo
     const products = await productService.listProductsBySeller(seller.id);
     sendSuccess(res, products);
   } catch (error: any) {
-    sendError(res, error.message || 'Failed to fetch seller products');
+    next(error);
   }
 }
 
-export async function getPublicProducts(req: Request, res: Response): Promise<void> {
+export async function getPublicProducts(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const categoryId = req.query.category_id ? Number(req.query.category_id) : undefined;
     const search = req.query.search ? String(req.query.search) : undefined;
@@ -78,25 +79,26 @@ export async function getPublicProducts(req: Request, res: Response): Promise<vo
     });
     sendSuccess(res, products);
   } catch (error: any) {
-    sendError(res, error.message || 'Failed to fetch products');
+    next(error);
   }
 }
 
-export async function getProductById(req: Request, res: Response): Promise<void> {
+export async function getProductById(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const productId = req.params.id as string;
     const product = await productService.getProductById(productId);
-    if (!product) {
+    const approved = product && await db('seller_profiles').where({ id: product.seller_id, status: 'approved' }).first();
+    if (!product || !product.is_active || !approved) {
       sendNotFound(res, 'Product not found');
       return;
     }
     sendSuccess(res, product);
   } catch (error: any) {
-    sendError(res, error.message || 'Failed to fetch product details');
+    next(error);
   }
 }
 
-export async function updateProduct(req: Request, res: Response): Promise<void> {
+export async function updateProduct(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const userId = req.user!.id;
     const seller = await sellerService.getSellerProfileByUserId(userId);
@@ -109,11 +111,11 @@ export async function updateProduct(req: Request, res: Response): Promise<void> 
     const product = await productService.updateProduct(productId, seller.id, req.body);
     sendSuccess(res, product, 'Product updated successfully');
   } catch (error: any) {
-    sendError(res, error.message || 'Failed to update product');
+    next(error);
   }
 }
 
-export async function deleteProduct(req: Request, res: Response): Promise<void> {
+export async function deleteProduct(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const userId = req.user!.id;
     const seller = await sellerService.getSellerProfileByUserId(userId);
@@ -126,39 +128,39 @@ export async function deleteProduct(req: Request, res: Response): Promise<void> 
     await productService.deleteProduct(productId, seller.id);
     sendSuccess(res, null, 'Product deleted successfully');
   } catch (error: any) {
-    sendError(res, error.message || 'Failed to delete product');
+    next(error);
   }
 }
 
 // ─── Variants & Inventory ───────────────────────────────────────────────────
 
-export async function addVariant(req: Request, res: Response): Promise<void> {
+export async function addVariant(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const productId = req.params.id as string;
     const variant = await productService.addProductVariant(productId, req.body);
     sendSuccess(res, variant, 'Variant added successfully', 201);
   } catch (error: any) {
-    sendError(res, error.message || 'Failed to add variant');
+    next(error);
   }
 }
 
-export async function updateInventory(req: Request, res: Response): Promise<void> {
+export async function updateInventory(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const variantId = req.params.variantId as string;
     const inventory = await productService.updateInventory(variantId, req.body);
     sendSuccess(res, inventory, 'Inventory updated successfully');
   } catch (error: any) {
-    sendError(res, error.message || 'Failed to update inventory');
+    next(error);
   }
 }
 
-export async function addProductImage(req: Request, res: Response): Promise<void> {
+export async function addProductImage(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const productId = req.params.id as string;
     const { image_url, is_primary } = req.body;
     const image = await productService.addProductImage(productId, image_url, is_primary);
     sendSuccess(res, image, 'Image added successfully', 201);
   } catch (error: any) {
-    sendError(res, error.message || 'Failed to add image');
+    next(error);
   }
 }

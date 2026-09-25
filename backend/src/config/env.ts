@@ -14,7 +14,7 @@ const envSchema = z.object({
   DB_PORT: z.string().default('3306'),
   DB_USER: z.string().default('root'),
   DB_PASSWORD: z.string().default('root'),
-  DB_NAME: z.string().default('dripnow_db'),
+  DB_NAME: z.string().default('dripnow'),
 
   JWT_ACCESS_SECRET: z.string().min(32),
   JWT_REFRESH_SECRET: z.string().min(32),
@@ -35,7 +35,7 @@ const envSchema = z.object({
   OTP_EXPIRES_IN_MINUTES: z.string().default('10'),
   OTP_MAX_ATTEMPTS: z.string().default('5'),
   RESET_TOKEN_EXPIRES_IN_MINUTES: z.string().default('15'),
-  SMS_PROVIDER: z.enum(['mock', 'msg91', 'twilio']).default('mock'),
+  SMS_PROVIDER: z.enum(['mock', 'twilio']).default('mock'),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -46,4 +46,9 @@ if (!parsed.success) {
   process.exit(1);
 }
 
+if (parsed.data.NODE_ENV === 'production') {
+  if (parsed.data.DB_CLIENT !== 'mysql2' || parsed.data.SMS_PROVIDER === 'mock' || parsed.data.JWT_ACCESS_SECRET === parsed.data.JWT_REFRESH_SECRET || /change_this/i.test(parsed.data.JWT_ACCESS_SECRET)) {
+    throw new Error('Production requires MySQL, a real SMS provider, and distinct generated JWT secrets');
+  }
+}
 export const env = parsed.data;

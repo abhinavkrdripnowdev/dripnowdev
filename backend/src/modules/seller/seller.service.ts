@@ -210,7 +210,7 @@ export async function getSellerDashboardOverview(sellerId: string): Promise<Sell
   // 4. Total earnings
   const earningsRes = await db('seller_orders')
     .where({ seller_id: sellerId, status: 'completed' })
-    .sum({ total: 'total_amount' })
+    .sum({ total: db.raw('subtotal - discount_amount') })
     .first();
   const totalEarnings = Number(earningsRes?.total ?? 0);
 

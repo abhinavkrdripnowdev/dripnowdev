@@ -1,3 +1,6 @@
+import { sendSms } from '../integrations/sms/send';
+import jwt from 'jsonwebtoken';
+import { randomUUID } from 'crypto';
 import { db } from '../config/database';
 import { env } from '../config/env';
 import { generateOtp, sha256Hash } from '../utils/crypto';
@@ -8,6 +11,7 @@ const OTP_MAX_ATTEMPTS = Number(env.OTP_MAX_ATTEMPTS);
 const RESET_TOKEN_EXPIRES_MINUTES = Number(env.RESET_TOKEN_EXPIRES_IN_MINUTES);
 
 function logOtpToTerminal(type: string, target: string, otp: string) {
+  if (env.NODE_ENV !== 'development') return;
   const logLine = `\n====================================================\n>>> [OTP GENERATED] <<<\nType:   ${type.toUpperCase()}\nTarget: ${target}\nCODE:   [ ${otp} ]\n====================================================\n`;
   console.log(logLine);
   try {
@@ -81,7 +85,8 @@ export async function verifyPhoneOtp(
   }
 
   // Mark as used
-  await db('verification_tokens').where({ id: record.id }).update({ used: true });
+  const consumed = await db('verification_tokens').where({ id: record.id, used: false }).where('attempt_count', '<', OTP_MAX_ATTEMPTS).update({ used: true });
+  if (!consumed) return { valid: false, reason: 'OTP already consumed or locked.' };
   // Mark phone as verified
   await db('users').where({ id: userId }).update({ phone_verified: true });
 
@@ -152,7 +157,8 @@ export async function verifyEmailOtp(
   }
 
   // Mark as used
-  await db('verification_tokens').where({ id: record.id }).update({ used: true });
+  const consumed = await db('verification_tokens').where({ id: record.id, used: false }).where('attempt_count', '<', OTP_MAX_ATTEMPTS).update({ used: true });
+  if (!consumed) return { valid: false, reason: 'OTP already consumed or locked.' };
   // Mark email as verified
   await db('users').where({ id: userId }).update({ email_verified: true });
 
@@ -221,7 +227,8 @@ export async function verifyPreRegPhoneOtp(
     return { valid: false, reason: 'Incorrect OTP.' };
   }
 
-  await db('verification_tokens').where({ id: record.id }).update({ used: true });
+  const consumed = await db('verification_tokens').where({ id: record.id, used: false }).where('attempt_count', '<', OTP_MAX_ATTEMPTS).update({ used: true });
+  if (!consumed) return { valid: false, reason: 'OTP already consumed or locked.' };
   const verificationToken = generateVerificationProof(phone);
 
   return { valid: true, verificationToken };
@@ -289,18 +296,24 @@ export async function verifyPreRegEmailOtp(
     return { valid: false, reason: 'Incorrect OTP.' };
   }
 
-  await db('verification_tokens').where({ id: record.id }).update({ used: true });
+  const consumed = await db('verification_tokens').where({ id: record.id, used: false }).where('attempt_count', '<', OTP_MAX_ATTEMPTS).update({ used: true });
+  if (!consumed) return { valid: false, reason: 'OTP already consumed or locked.' };
   const verificationToken = generateVerificationProof(email);
 
   return { valid: true, verificationToken };
 }
 
 export function generateVerificationProof(identifier: string): string {
-  return sha256Hash(`verified:${identifier}:${env.JWT_ACCESS_SECRET}`);
+  return jwt.sign({ sub: identifier, purpose: 'verification' }, env.JWT_ACCESS_SECRET, {
+    expiresIn: '15m', issuer: 'dripnow-proof', jwtid: randomUUID(), algorithm: 'HS256',
+  });
 }
 
 export function verifyProofToken(identifier: string, token: string): boolean {
-  return token === generateVerificationProof(identifier);
+  try {
+    const payload = jwt.verify(token, env.JWT_ACCESS_SECRET, { issuer: 'dripnow-proof', algorithms: ['HS256'] }) as jwt.JwtPayload;
+    return payload.sub === identifier && payload.purpose === 'verification';
+  } catch { return false; }
 }
 
 /**
@@ -367,7 +380,8 @@ export async function verifyPasswordResetOtp(
     return { valid: false, reason: 'Incorrect OTP.' };
   }
 
-  await db('verification_tokens').where({ id: record.id }).update({ used: true });
+  const consumed = await db('verification_tokens').where({ id: record.id, used: false }).where('attempt_count', '<', OTP_MAX_ATTEMPTS).update({ used: true });
+  if (!consumed) return { valid: false, reason: 'OTP already consumed or locked.' };
   const resetToken = generateVerificationProof(`reset:${user.id}`);
 
   return { valid: true, resetToken };
@@ -378,6 +392,6 @@ export async function verifyPasswordResetOtp(
  */
 async function dispatchSms(phone: string, otp: string): Promise<void> {
   // Always log for local development visibility
-  logOtpToTerminal('SMS / Phone', phone, otp);
+  await sendSms(phone, otp);
 }
 

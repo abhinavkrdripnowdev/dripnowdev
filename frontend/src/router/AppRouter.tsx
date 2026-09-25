@@ -57,7 +57,7 @@ export const AppRouter: React.FC = () => {
       <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* ── Root redirect ─────────────────────────────────── */}
-          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/" element={<CustomerDashboard />} />
 
           {/* ── Public routes (redirect if already logged in) ──── */}
           <Route

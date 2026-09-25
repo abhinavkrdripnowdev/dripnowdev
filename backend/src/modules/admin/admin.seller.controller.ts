@@ -64,6 +64,11 @@ export async function approveSeller(req: Request, res: Response): Promise<void> 
       return;
     }
 
+    const applicant = await db('users').where({ id: seller.user_id }).first();
+    const pickup = await db('seller_locations').where({ seller_id: sellerId }).first();
+    const document = await db('seller_documents').where({ seller_id: sellerId }).first();
+    if (!applicant?.email_verified || !applicant?.phone_verified || !document || pickup?.latitude == null || pickup?.longitude == null) { sendBadRequest(res, 'Verified email, phone, documents and pickup coordinates are required'); return; }
+
     // Update seller_profiles status
     await db('seller_profiles')
       .where({ id: sellerId })
