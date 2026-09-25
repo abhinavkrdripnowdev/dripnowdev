@@ -405,11 +405,6 @@ export const RegisterPage: React.FC = () => {
         title="Verify Mobile Number"
         subtitle={`Enter the 6-digit OTP code sent to ${phoneValue}`}
       >
-        {phoneOtp && (
-          <div style={{ padding: '8px 12px', background: 'rgba(168, 85, 247, 0.15)', border: '1px solid rgba(168, 85, 247, 0.4)', borderRadius: 6, color: '#e2e8f0', fontWeight: 600, fontSize: '0.85rem', textAlign: 'center', marginBottom: 12 }}>
-            🔑 Local Dev OTP: <span style={{ letterSpacing: '2px', fontSize: '1.1rem', fontWeight: 800, color: '#ff9900' }}>{phoneOtp}</span>
-          </div>
-        )}
 
         {phoneOtpError && (
           <div className="auth-alert auth-alert--error animate-fade-in-down" role="alert">
@@ -458,11 +453,6 @@ export const RegisterPage: React.FC = () => {
         title="Verify Email Address"
         subtitle={`Enter the 6-digit OTP code sent to ${emailValue}`}
       >
-        {emailOtp && (
-          <div style={{ padding: '8px 12px', background: 'rgba(168, 85, 247, 0.15)', border: '1px solid rgba(168, 85, 247, 0.4)', borderRadius: 6, color: '#e2e8f0', fontWeight: 600, fontSize: '0.85rem', textAlign: 'center', marginBottom: 12 }}>
-            🔑 Local Dev OTP: <span style={{ letterSpacing: '2px', fontSize: '1.1rem', fontWeight: 800, color: '#ff9900' }}>{emailOtp}</span>
-          </div>
-        )}
 
         {emailOtpError && (
           <div className="auth-alert auth-alert--error animate-fade-in-down" role="alert">

@@ -6,6 +6,7 @@ export interface ApiResponse<T = unknown> {
 }
 
 export interface AuthenticatedUser {
+  account_status?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED' | 'BLOCKED';
   id: string;
   username: string | null;
   full_name: string;
@@ -88,7 +89,7 @@ export const ROLE_DASHBOARD_MAP: Record<UserRole, string> = {
 
 export function getDefaultDashboard(roles: string[]): string {
   // Highest privilege first
-  const priority: UserRole[] = ['super_admin', 'manager', 'seller', 'delivery_partner', 'customer'];
+  const priority: UserRole[] = ['super_admin', 'admin', 'manager', 'seller', 'delivery_partner', 'customer'];
   for (const role of priority) {
     if (roles.includes(role)) return ROLE_DASHBOARD_MAP[role];
   }

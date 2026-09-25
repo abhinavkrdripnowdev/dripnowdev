@@ -1,3 +1,4 @@
+import api from '@/lib/api';
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth.store';
@@ -32,15 +33,13 @@ const RoleIcon: Record<string, string> = {
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   children,
   role,
-  roleColor = '#007185',
   navItems = [],
 }) => {
   const { user, clearAuth } = useAuthStore();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    clearAuth();
-    navigate('/login');
+  const handleLogout = async () => {
+    try { await api.post('/auth/logout'); } finally { clearAuth(); navigate('/login'); }
   };
 
   return (

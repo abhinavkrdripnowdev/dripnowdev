@@ -1,10 +1,13 @@
+import { SellerCatalog } from './SellerCatalog';
+import { SellerOffers } from './SellerOffers';
+import { SellerApplication } from './SellerApplication';
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout/DashboardLayout';
 import { sellerApi, type SellerDashboard as SellerDashboardType, type SellerOrder } from '../api/seller.api';
+import { SellerLocationManager } from './SellerLocationManager';
 import '@/components/layout/DashboardLayout/DashboardLayout.css';
 
-type Section = 'overview' | 'orders' | 'products' | 'earnings';
+type Section = 'overview' | 'orders' | 'products' | 'earnings' | 'location' | 'offers' | 'profile';
 
 const ORDER_STATUS_FLOW: Record<string, { label: string; next: string | null; btnLabel: string; btnClass: string }> = {
   new:             { label: 'New',              next: 'accepted',         btnLabel: 'Accept Order',      btnClass: 'dash-btn--success' },
@@ -22,7 +25,6 @@ export const SellerDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
-  const navigate = useNavigate();
 
   const loadDashboard = useCallback(async () => {
     try {
@@ -60,11 +62,14 @@ export const SellerDashboard: React.FC = () => {
   };
 
   const navItems = [
+    { label: 'Profile & Documents', icon: '👤', active: section === 'profile', onClick: () => setSection('profile') },
+    { label: 'Offers', icon: '🎟', active: section === 'offers', onClick: () => setSection('offers') },
     { label: 'Overview',  icon: '📊', active: section === 'overview',  onClick: () => setSection('overview') },
     { label: 'Orders',    icon: '📦', active: section === 'orders',    onClick: () => setSection('orders'),    badge: dashboard?.pending_orders_count },
     { label: 'Products',  icon: '👕', active: section === 'products',  onClick: () => setSection('products') },
     { label: 'Earnings',  icon: '💰', active: section === 'earnings',  onClick: () => setSection('earnings') },
-    { label: 'Add Product', icon: '➕', onClick: () => navigate('/seller/products/new') },
+    { label: 'Location',  icon: '📍', active: section === 'location',  onClick: () => setSection('location') },
+    { label: 'Add Product', icon: '➕', onClick: () => setSection('products') },
   ];
 
   if (loading) {
@@ -129,7 +134,7 @@ export const SellerDashboard: React.FC = () => {
             <h2 className="dash-section-title">Quick Actions</h2>
           </div>
           <div className="dash-quick-actions">
-            <button className="dash-quick-action" onClick={() => navigate('/seller/products/new')} id="seller-add-product-btn">
+            <button className="dash-quick-action" onClick={() => setSection('products')} id="seller-add-product-btn">
               <div className="dash-quick-action__icon">➕</div>
               <div className="dash-quick-action__label">Add Product</div>
             </button>
@@ -188,22 +193,9 @@ export const SellerDashboard: React.FC = () => {
       )}
 
       {/* ── PRODUCTS ── */}
-      {section === 'products' && (
-        <>
-          <div className="dash-section-header">
-            <h2 className="dash-section-title">My Products</h2>
-            <button className="dash-btn dash-btn--primary" onClick={() => navigate('/seller/products/new')}>
-              ➕ Add Product
-            </button>
-          </div>
-          <div className="dash-table-wrap">
-            <div className="dash-empty">
-              <div className="dash-empty__icon">👕</div>
-              <div className="dash-empty__text">Product management coming soon. Your products will appear here.</div>
-            </div>
-          </div>
-        </>
-      )}
+      {section === 'products' && <SellerCatalog />}
+      {section === 'offers' && <SellerOffers />}
+      {section === 'profile' && <SellerApplication onSaved={loadDashboard} />}
 
       {/* ── EARNINGS ── */}
       {section === 'earnings' && (
@@ -221,10 +213,15 @@ export const SellerDashboard: React.FC = () => {
           <div className="dash-table-wrap">
             <div className="dash-empty">
               <div className="dash-empty__icon">📈</div>
-              <div className="dash-empty__text">Detailed earnings breakdown and settlement history coming soon.</div>
+              <div className="dash-empty__text">Earnings include completed merchandise sales, excluding customer delivery fees.</div>
             </div>
           </div>
         </>
+      )}
+
+      {/* ── LOCATION ── */}
+      {section === 'location' && (
+        <SellerLocationManager />
       )}
     </DashboardLayout>
   );

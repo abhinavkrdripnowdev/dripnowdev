@@ -1,9 +1,11 @@
+import { useAuthStore } from '@/store/auth.store';
+import { AdminOperations } from './AdminOperations';
 import React, { useState, useEffect, useCallback } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout/DashboardLayout';
 import { adminApi, type PendingSeller } from '../api/admin.api';
 import '@/components/layout/DashboardLayout/DashboardLayout.css';
 
-type Section = 'overview' | 'sellers' | 'delivery' | 'users' | 'orders' | 'audit';
+type Section = 'overview' | 'sellers' | 'delivery' | 'users' | 'orders' | 'audit' | 'settings';
 
 export const AdminDashboard: React.FC = () => {
   const [section, setSection] = useState<Section>('overview');
@@ -79,6 +81,7 @@ export const AdminDashboard: React.FC = () => {
   const suspendedCount = allSellers.filter(s => s.status === 'suspended').length;
 
   const navItems = [
+    ...(useAuthStore.getState().user?.roles.includes('super_admin') ? [{ label: 'Platform Pricing', icon: '⚙️', active: section === 'settings', onClick: () => setSection('settings') }] : []),
     { label: 'Overview',         icon: '📊', active: section === 'overview',  onClick: () => setSection('overview') },
     { label: 'Seller Approvals', icon: '🏪', active: section === 'sellers',   onClick: () => setSection('sellers'),  badge: pendingCount },
     { label: 'Delivery Partners',icon: '🏍️', active: section === 'delivery',  onClick: () => setSection('delivery') },
@@ -171,19 +174,8 @@ export const AdminDashboard: React.FC = () => {
       )}
 
       {/* ── PLACEHOLDER SECTIONS ── */}
-      {(section === 'delivery' || section === 'users' || section === 'orders' || section === 'audit') && (
-        <div className="dash-table-wrap">
-          <div className="dash-empty">
-            <div className="dash-empty__icon">
-              {section === 'delivery' ? '🏍️' : section === 'users' ? '👥' : section === 'orders' ? '📦' : '🔍'}
-            </div>
-            <div className="dash-empty__text" style={{ fontSize: '1rem', fontWeight: 600, color: 'hsl(220,10%,60%)' }}>
-              {section === 'delivery' ? 'Delivery Partner Management' : section === 'users' ? 'User Management' : section === 'orders' ? 'Order Monitoring' : 'Audit Logs'}
-            </div>
-            <div className="dash-empty__text">This section is being built. Check back soon.</div>
-          </div>
-        </div>
-      )}
+      {['delivery', 'users', 'orders', 'audit', 'settings'].includes(section) && <AdminOperations section={section} />}
+
     </DashboardLayout>
   );
 };

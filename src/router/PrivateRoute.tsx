@@ -2,6 +2,7 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth.store';
 import type { UserRole } from '@/features/auth/types/auth.types';
+import { getDefaultDashboard } from '@/features/auth/types/auth.types';
 
 interface PrivateRouteProps {
   children: React.ReactNode;
@@ -30,7 +31,7 @@ export const PrivateRoute: React.FC<PrivateRouteProps> = ({
 
   if (allowedRoles && !allowedRoles.some((role) => user.roles.includes(role))) {
     // Authenticated but wrong role — send to their own dashboard
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={getDefaultDashboard(user.roles)} replace />;
   }
 
   return <>{children}</>;
