@@ -36,6 +36,9 @@ const envSchema = z.object({
   OTP_MAX_ATTEMPTS: z.string().default('5'),
   RESET_TOKEN_EXPIRES_IN_MINUTES: z.string().default('15'),
   SMS_PROVIDER: z.enum(['mock', 'twilio']).default('mock'),
+  PAYOUT_PROVIDER: z.enum(['manual', 'http']).default('manual'),
+  PAYOUT_API_URL: z.string().url().optional(),
+  PAYOUT_API_KEY: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -47,8 +50,8 @@ if (!parsed.success) {
 }
 
 if (parsed.data.NODE_ENV === 'production') {
-  if (parsed.data.DB_CLIENT !== 'mysql2' || parsed.data.SMS_PROVIDER === 'mock' || parsed.data.JWT_ACCESS_SECRET === parsed.data.JWT_REFRESH_SECRET || /change_this/i.test(parsed.data.JWT_ACCESS_SECRET)) {
-    throw new Error('Production requires MySQL, a real SMS provider, and distinct generated JWT secrets');
+  if (parsed.data.DB_CLIENT !== 'mysql2' || parsed.data.SMS_PROVIDER === 'mock' || parsed.data.PAYOUT_PROVIDER === 'manual' || parsed.data.JWT_ACCESS_SECRET === parsed.data.JWT_REFRESH_SECRET || /change_this/i.test(parsed.data.JWT_ACCESS_SECRET)) {
+    throw new Error('Production requires MySQL, real SMS and payout providers, and distinct generated JWT secrets');
   }
 }
 export const env = parsed.data;

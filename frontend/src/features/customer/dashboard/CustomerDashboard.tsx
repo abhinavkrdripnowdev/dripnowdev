@@ -361,7 +361,7 @@ export const CustomerDashboard: React.FC = () => {
                     </div>
                   </div>
 
-                  {order.status === '3_HOUR_RETURN_WINDOW' && <><button onClick={async () => { const reason = prompt('Reason for return'); if (reason) try { await api.post(`/orders/${order.id}/requests`, { kind: 'RETURN', reason }); fetchOrders(); } catch { setMessage('Unable to request return'); } }}>Request return</button><button onClick={async () => { const reason = prompt('Reason for exchange'); if (reason) try { await api.post(`/orders/${order.id}/requests`, { kind: 'EXCHANGE', reason }); fetchOrders(); } catch { setMessage('Unable to request exchange'); } }}>Request exchange</button></>}
+                  {order.status === '3_HOUR_RETURN_WINDOW' && <button onClick={async () => { const reason = prompt('Reason for return'); if (reason) try { await api.post(`/orders/${order.id}/requests`, { kind: 'RETURN', reason }); fetchOrders(); } catch { setMessage('Unable to request return'); } }}>Request return</button>}
                   <button onClick={() => setTrackingOrder(trackingOrder === order.id ? '' : order.id)}>Track delivery</button>
                   {trackingOrder === order.id && <OrderTracking orderId={order.id} />}
                   {order.payment_method === 'razorpay' && order.status === 'PAYMENT_PENDING' && <button onClick={() => payOrder(order.id).then(fetchOrders).catch(e => setMessage(e.message))}>Pay securely</button>}
@@ -375,6 +375,7 @@ export const CustomerDashboard: React.FC = () => {
                             <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Qty: {item.quantity}</div>
                           </div>
                           <div style={{ fontWeight: 600 }}>₹{item.total_price.toLocaleString('en-IN')}</div>
+                          {order.status === '3_HOUR_RETURN_WINDOW' && <button onClick={async () => { try { const product = (await api.get(`/products/${item.product_id}`)).data.data; const choices = (product.variants ?? []).filter((v: any) => v.id !== item.variant_id && Number(v.inventory?.quantity ?? 0) > 0); if (!choices.length) { setMessage('No replacement variant is currently available'); return; } const selected = prompt(`Choose replacement:\n${choices.map((v: any, i: number) => `${i + 1}. ${v.size ?? ''} ${v.color ?? ''}`).join('\n')}`); const replacement = choices[Number(selected) - 1]; if (!replacement) return; const reason = prompt('Reason for exchange'); if (!reason) return; await api.post(`/orders/${order.id}/requests`, { kind: 'EXCHANGE', reason, order_item_id: item.id, requested_variant_id: replacement.id, quantity: 1 }); await fetchOrders(); } catch { setMessage('Unable to request exchange'); } }}>Exchange size/color</button>}
                         </div>
                       ))}
                       <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: 8 }}>Status: {sOrder.status.replace(/_/g, ' ').toUpperCase()}</div>

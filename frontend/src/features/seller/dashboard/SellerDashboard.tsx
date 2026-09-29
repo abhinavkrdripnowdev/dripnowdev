@@ -3,9 +3,10 @@ import { SellerOffers } from './SellerOffers';
 import { SellerApplication } from './SellerApplication';
 import React, { useState, useEffect, useCallback } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout/DashboardLayout';
-import { sellerApi, type SellerDashboard as SellerDashboardType, type SellerOrder } from '../api/seller.api';
+import { sellerApi, type SellerDashboard as SellerDashboardType, type SellerOrder, type SellerSettlement } from '../api/seller.api';
 import { SellerLocationManager } from './SellerLocationManager';
 import '@/components/layout/DashboardLayout/DashboardLayout.css';
+import './SellerWorkspace.css';
 
 type Section = 'overview' | 'orders' | 'products' | 'earnings' | 'location' | 'offers' | 'profile';
 
@@ -25,17 +26,20 @@ export const SellerDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+  const [settlements, setSettlements] = useState<SellerSettlement[]>([]);
 
   const loadDashboard = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const [dash, ords] = await Promise.all([
+      const [dash, ords, earnings] = await Promise.all([
         sellerApi.getDashboard(),
         sellerApi.getOrders(),
+        sellerApi.getEarnings(),
       ]);
       setDashboard(dash);
       setOrders(ords);
+      setSettlements(earnings);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to load dashboard';
       setError(msg);
@@ -62,14 +66,13 @@ export const SellerDashboard: React.FC = () => {
   };
 
   const navItems = [
-    { label: 'Profile & Documents', icon: '👤', active: section === 'profile', onClick: () => setSection('profile') },
-    { label: 'Offers', icon: '🎟', active: section === 'offers', onClick: () => setSection('offers') },
     { label: 'Overview',  icon: '📊', active: section === 'overview',  onClick: () => setSection('overview') },
     { label: 'Orders',    icon: '📦', active: section === 'orders',    onClick: () => setSection('orders'),    badge: dashboard?.pending_orders_count },
     { label: 'Products',  icon: '👕', active: section === 'products',  onClick: () => setSection('products') },
+    { label: 'Offers', icon: '🎟', active: section === 'offers', onClick: () => setSection('offers') },
     { label: 'Earnings',  icon: '💰', active: section === 'earnings',  onClick: () => setSection('earnings') },
     { label: 'Location',  icon: '📍', active: section === 'location',  onClick: () => setSection('location') },
-    { label: 'Add Product', icon: '➕', onClick: () => setSection('products') },
+    { label: 'Profile & Documents', icon: '👤', active: section === 'profile', onClick: () => setSection('profile') },
   ];
 
   if (loading) {
@@ -206,16 +209,11 @@ export const SellerDashboard: React.FC = () => {
           <div className="dash-metrics">
             <div className="dash-metric-card">
               <div className="dash-metric-card__icon">💰</div>
-              <div className="dash-metric-card__value">₹{(dashboard?.total_earnings ?? 0).toLocaleString('en-IN')}</div>
-              <div className="dash-metric-card__label">Total Earnings (Completed Orders)</div>
+              <div className="dash-metric-card__value">₹{(settlements.reduce((sum, s) => sum + Number(s.payable_paise), 0) / 100).toLocaleString('en-IN')}</div>
+              <div className="dash-metric-card__label">Protected and eligible earnings</div>
             </div>
           </div>
-          <div className="dash-table-wrap">
-            <div className="dash-empty">
-              <div className="dash-empty__icon">📈</div>
-              <div className="dash-empty__text">Earnings include completed merchandise sales, excluding customer delivery fees.</div>
-            </div>
-          </div>
+          <div className="dash-table-wrap">{!settlements.length ? <div className="dash-empty"><div className="dash-empty__icon">📈</div><div className="dash-empty__text">Earnings become eligible after the three-hour protection window closes.</div></div> : settlements.map(s => <article key={s.id} style={{ padding: 12, borderBottom: '1px solid #444' }}><b>₹{(Number(s.payable_paise) / 100).toFixed(2)}</b> · {s.status}<br /><small>Seller order {s.seller_order_id}</small></article>)}</div>
         </>
       )}
 

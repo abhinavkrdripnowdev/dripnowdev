@@ -32,3 +32,18 @@ export async function sellerDiscount(trx: Knex.Transaction, sellerId: string, it
   }
   return Math.min(subtotal, best);
 }
+
+export async function platformDiscount(trx: Knex.Transaction, subtotal: number, coupon?: string) {
+  const now = Date.now(); let best = 0;
+  const offers = await trx('platform_offers').where({ is_active: true });
+  for (const offer of offers) {
+    if (offer.code && offer.code !== coupon?.toUpperCase()) continue;
+    if (offer.start_date && new Date(offer.start_date).getTime() > now) continue;
+    if (offer.end_date && new Date(offer.end_date).getTime() <= now) continue;
+    if (Math.round(Number(offer.min_order_value) * 100) > subtotal) continue;
+    const amount = discountPaise(subtotal, offer);
+    const capped = offer.max_discount == null ? amount : Math.min(amount, Math.round(Number(offer.max_discount) * 100));
+    best = Math.max(best, capped);
+  }
+  return Math.min(subtotal, best);
+}

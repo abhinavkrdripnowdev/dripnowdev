@@ -8,6 +8,7 @@ import { authorize } from '../../middleware/authorize';
 import { authorizePermission } from '../../middleware/authorizePermission';
 import { fail } from '../../utils/httpError';
 import { sendSuccess } from '../../utils/response';
+import { notify } from '../../services/notification.service';
 
 const router = Router();
 router.use(authenticate, authorize('manager', 'super_admin'), authorizePermission('admin:manage_users'));
@@ -15,6 +16,18 @@ router.get('/users', async (_req, res) => { sendSuccess(res, await db('users').s
 router.get('/orders', async (_req, res) => { sendSuccess(res, await db('orders').orderBy('created_at', 'desc').limit(200)); });
 router.get('/audit', async (_req, res) => { sendSuccess(res, await db('audit_logs').orderBy('created_at', 'desc').limit(200)); });
 router.get('/security-events', async (_req, res) => { sendSuccess(res, await db('security_events').orderBy('created_at', 'desc').limit(200)); });
+router.get('/products', async (_req, res) => { sendSuccess(res, await db('products as p').join('seller_profiles as s', 's.id', 'p.seller_id').select('p.*', 's.business_name').orderBy('p.created_at', 'desc').limit(500)); });
+router.patch('/products/:id/moderation', async (req, res) => {
+  const data = z.object({ status: z.enum(['APPROVED', 'REJECTED', 'SUSPENDED']), note: z.string().min(3).max(1000) }).strict().parse(req.body);
+  const changed = await db.transaction(async trx => { const count = await trx('products').where({ id: String(req.params.id) }).update({ moderation_status: data.status, moderation_note: data.note, is_active: data.status === 'APPROVED' }); if (count) await trx('audit_logs').insert({ user_id: req.user!.id, action: 'PRODUCT_MODERATED', metadata: JSON.stringify({ product_id: req.params.id, ...data }) }); return count; });
+  if (!changed) fail('Product not found', 404); sendSuccess(res, null);
+});
+router.get('/platform-offers', async (_req, res) => sendSuccess(res, await db('platform_offers').orderBy('created_at', 'desc')));
+router.post('/platform-offers', authorize('super_admin'), async (req, res) => {
+  const data = z.object({ name: z.string().min(2).max(180), code: z.string().min(3).max(50).transform(v => v.toUpperCase()).optional(), offer_type: z.enum(['percentage','flat']), discount_value: z.number().positive(), min_order_value: z.number().nonnegative().default(0), max_discount: z.number().positive().optional(), start_date: z.coerce.date().optional(), end_date: z.coerce.date().optional() }).strict().parse(req.body);
+  const id = randomUUID(); await db('platform_offers').insert({ id, ...data }); await db('audit_logs').insert({ user_id: req.user!.id, action: 'PLATFORM_OFFER_CREATED', metadata: JSON.stringify({ id, ...data }) }); sendSuccess(res, { id });
+});
+router.patch('/platform-offers/:id', authorize('super_admin'), async (req, res) => { const data = z.object({ is_active: z.boolean() }).strict().parse(req.body); const changed = await db('platform_offers').where({ id: String(req.params.id) }).update(data); if (!changed) fail('Offer not found', 404); sendSuccess(res, null); });
 router.patch('/users/:id/status', async (req, res) => {
   const data = z.object({ status: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'SUSPENDED', 'BLOCKED']), reason: z.string().min(3).max(1000) }).strict().parse(req.body);
   const id = z.string().uuid().parse(req.params.id);
@@ -27,6 +40,7 @@ router.patch('/users/:id/status', async (req, res) => {
     await trx('users').where({ id }).update({ account_status: data.status, status: data.status === 'APPROVED' ? 'active' : data.status === 'PENDING' ? 'pending_verification' : 'suspended' });
     await trx('sessions').where({ user_id: id }).update({ revoked: true });
     await trx('audit_logs').insert({ user_id: req.user!.id, action: 'ACCOUNT_STATUS_CHANGED', metadata: JSON.stringify({ target: id, ...data }) });
+    await notify(id, 'ACCOUNT_STATUS_CHANGED', 'Account status changed', `Your account status is now ${data.status}.`, { reason: data.reason }, trx);
   }); sendSuccess(res, null);
 });
 router.get('/admin-requests', async (_req, res) => { sendSuccess(res, await db('admin_creation_requests').orderBy('created_at', 'desc')); });

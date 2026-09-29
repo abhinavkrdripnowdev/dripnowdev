@@ -161,7 +161,7 @@ test('a seller cannot mutate another seller product, image, variant or inventory
 test('quotes do not reserve stock and seller discounts are server calculated', async () => {
   const offerId = randomUUID();
   await db('seller_offers').insert({ id: offerId, seller_id: seller, title: 'Automatic 10%', offer_type: 'percentage', discount_value: 10, min_order_value: 0 });
-  await cart.addToCart(customer, { product_id: product, quantity: 1 });
+  await cart.addToCart(customer, { product_id: product, variant_id: variant, quantity: 1 });
   const stock = (await db('inventory').where({ variant_id: variant }).first()).quantity;
   const quote = await orders.checkout(customer, address, 'cod', undefined, true);
   assert.equal(quote.discount_amount, 70);
@@ -205,4 +205,139 @@ test('return window closes and requests are restricted to order owners', async (
   assert.equal((await request(`/api/v1/orders/${delivered.id}/requests`, 'POST', { kind: 'RETURN', reason: 'Wrong item delivered' })).status, 409);
   await require('../dist/jobs/maintenance').maintenance();
   assert.equal((await db('orders').where({ id: delivered.id }).first()).status, 'COMPLETED');
+});
+
+test('financial journals balance and ordinary admins cannot perform financial operations', async () => {
+  const admin = await user('customer'), superOne = await user('customer'), superTwo = await user('customer');
+  await db('user_roles').insert([{ user_id: admin, role_id: 4 }, { user_id: superOne, role_id: 5 }, { user_id: superTwo, role_id: 5 }]);
+  const adminToken = (await auth.createSession(admin, ['admin'])).accessToken;
+  const firstToken = (await auth.createSession(superOne, ['super_admin'])).accessToken;
+  const secondToken = (await auth.createSession(superTwo, ['super_admin'])).accessToken;
+  assert.equal((await request('/api/v1/finance/payouts', 'POST', { beneficiary_type: 'SELLER', beneficiary_id: seller, settlement_ids: [] }, adminToken)).status, 403);
+  const cod = await db('cod_records').first();
+  assert.equal((await request(`/api/v1/admin/delivery/cod/${cod.id}/reconcile`, 'POST', { reference: 'CASH-TEST' }, adminToken)).status, 403);
+  const settlement = await db('settlements').where({ seller_id: seller, status: 'ELIGIBLE' }).first();
+  assert.ok(settlement, 'maintenance should create seller settlement after return window');
+  const created = await request('/api/v1/finance/payouts', 'POST', { beneficiary_type: 'SELLER', beneficiary_id: seller, settlement_ids: [settlement.id] }, firstToken);
+  assert.equal(created.status, 200);
+  const payoutId = created.body.data.id;
+  assert.equal((await request(`/api/v1/finance/payouts/${payoutId}/approve`, 'POST', {}, firstToken)).status, 403);
+  assert.equal((await request(`/api/v1/finance/payouts/${payoutId}/approve`, 'POST', {}, secondToken)).status, 200);
+  assert.equal((await request(`/api/v1/finance/payouts/${payoutId}/execute`, 'POST', { manual_reference: 'BANK-TRANSFER-1' }, firstToken)).status, 403);
+  assert.equal((await request(`/api/v1/finance/payouts/${payoutId}/execute`, 'POST', { manual_reference: 'BANK-TRANSFER-1' }, secondToken)).status, 200);
+  assert.equal((await db('settlements').where({ id: settlement.id }).first()).status, 'PAID');
+  const transactions = await db('financial_transactions');
+  assert.ok(transactions.some(t => t.type === 'CUSTOMER_PAYMENT'));
+  assert.ok(transactions.some(t => t.type === 'DELIVERY_EARNING'));
+  assert.ok(transactions.some(t => t.type === 'SELLER_PAYABLE'));
+  assert.ok(transactions.some(t => t.type === 'PAYOUT'));
+  for (const transaction of transactions) {
+    const entries = await db('ledger_entries').where({ transaction_id: transaction.id });
+    const debit = entries.filter(e => e.direction === 'DEBIT').reduce((s, e) => s + Number(e.amount_paise), 0);
+    const credit = entries.filter(e => e.direction === 'CREDIT').reduce((s, e) => s + Number(e.amount_paise), 0);
+    assert.equal(debit, credit); assert.ok(debit > 0);
+  }
+});
+
+test('size exchange reserves replacement stock and completes only after pickup', async () => {
+  const replacement = randomUUID();
+  await db('product_variants').insert({ id: replacement, product_id: product, sku: 'TEST-XL', size: 'XL', is_active: true });
+  await db('inventory').insert({ id: randomUUID(), variant_id: replacement, quantity: 3 });
+  await cart.addToCart(customer, { product_id: product, variant_id: variant, quantity: 1 });
+  const placed = await orders.checkout(customer, address, 'cod');
+  await db('orders').where({ id: placed.order_id }).update({ status: '3_HOUR_RETURN_WINDOW', return_window_ends_at: new Date(Date.now() + 3600000) });
+  const item = await db('seller_order_items as i').join('seller_orders as s', 's.id', 'i.seller_order_id').where('s.parent_order_id', placed.order_id).select('i.*').first();
+  const requested = await request(`/api/v1/orders/${placed.order_id}/requests`, 'POST', { kind: 'EXCHANGE', reason: 'Need a larger size', order_item_id: item.id, requested_variant_id: replacement, quantity: 1 });
+  assert.equal(requested.status, 200);
+  const admin = await db('users as u').join('user_roles as ur', 'ur.user_id', 'u.id').where('ur.role_id', 4).select('u.id').first();
+  const adminToken = (await auth.createSession(admin.id, ['admin'])).accessToken;
+  assert.equal((await request(`/api/v1/admin/order-requests/${requested.body.data.id}`, 'PATCH', { action: 'APPROVE', note: 'Replacement stock confirmed' }, adminToken)).status, 200);
+  assert.equal((await db('inventory').where({ variant_id: replacement }).first()).quantity, 2);
+  assert.equal((await request(`/api/v1/admin/order-requests/${requested.body.data.id}/fulfillment`, 'PATCH', { action: 'EXCHANGE_COMPLETED', note: 'Tried to skip pickup' }, adminToken)).status, 409);
+  await db('delivery_partner_locations').update({ updated_at: new Date() });
+  let reverse = await delivery.availableReverseTasks(partner); assert.equal(reverse.length, 1);
+  await delivery.acceptReverseTask(partner, reverse[0].id); await delivery.progressReverseTask(partner, reverse[0].id, 'PICKED_UP'); await delivery.progressReverseTask(partner, reverse[0].id, 'IN_TRANSIT'); await delivery.progressReverseTask(partner, reverse[0].id, 'DELIVERED');
+  assert.equal((await request(`/api/v1/admin/order-requests/${requested.body.data.id}/fulfillment`, 'PATCH', { action: 'PICKUP_COMPLETED', note: 'Pickup evidence recorded' }, adminToken)).status, 200);
+  await db('delivery_partner_locations').update({ updated_at: new Date() });
+  reverse = await delivery.availableReverseTasks(partner); assert.equal(reverse.length, 1);
+  await delivery.acceptReverseTask(partner, reverse[0].id); await delivery.progressReverseTask(partner, reverse[0].id, 'PICKED_UP'); await delivery.progressReverseTask(partner, reverse[0].id, 'IN_TRANSIT'); await delivery.progressReverseTask(partner, reverse[0].id, 'DELIVERED');
+  assert.equal((await request(`/api/v1/admin/order-requests/${requested.body.data.id}/fulfillment`, 'PATCH', { action: 'EXCHANGE_COMPLETED', note: 'Replacement delivered' }, adminToken)).status, 200);
+  assert.equal((await db('inventory').where({ variant_id: variant }).first()).quantity > 0, true);
+});
+
+test('product moderation, notification ownership, validation and CORS are enforced', async () => {
+  const admin = await db('users as u').join('user_roles as ur', 'ur.user_id', 'u.id').where('ur.role_id', 4).select('u.id').first();
+  const adminToken = (await auth.createSession(admin.id, ['admin'])).accessToken;
+  assert.equal((await request(`/api/v1/admin/products/${product}/moderation`, 'PATCH', { status: 'SUSPENDED', note: 'Policy test' }, adminToken)).status, 200);
+  const catalog = await request('/api/v1/products', 'GET', undefined, null);
+  assert.equal(catalog.body.data.some(p => p.id === product), false);
+  assert.equal((await request('/api/v1/admin/users/not-a-uuid/status', 'PATCH', { status: 'BLOCKED', reason: "x' OR 1=1 --" }, adminToken)).status, 422);
+  const mine = await request('/api/v1/notifications'); assert.equal(mine.status, 200); assert.ok(mine.body.data.every(n => n.user_id === customer));
+  const cors = await fetch(base + '/api/v1/products', { headers: { Origin: 'https://evil.example' } });
+  assert.notEqual(cors.headers.get('access-control-allow-origin'), 'https://evil.example');
+});
+
+test('multi-seller checkout, delivery, return pickup and COD refund reconcile end to end', async () => {
+  await cart.clearCart(customer);
+  const sellers = [], variants = [];
+  for (let i = 0; i < 2; i++) {
+    const sellerUser = await user('seller'), sellerId = randomUUID(), productId = randomUUID(), variantId = randomUUID();
+    await db('seller_profiles').insert({ id: sellerId, user_id: sellerUser, business_name: `Multi Store ${i}`, status: 'approved' });
+    await db('seller_locations').insert({ id: randomUUID(), seller_id: sellerId, address_line1: `Pickup ${i}`, city: 'Mumbai', state: 'MH', postal_code: '400001', latitude: 19.07 + i * .01, longitude: 72.87 + i * .01, active: true });
+    await db('products').insert({ id: productId, seller_id: sellerId, category_id: 1, name: `Multi product ${i}`, slug: `multi-product-${i}`, base_price: 500 + i * 100, moderation_status: 'APPROVED' });
+    await db('product_variants').insert({ id: variantId, product_id: productId, sku: `MULTI-${i}`, is_active: true });
+    await db('inventory').insert({ id: randomUUID(), variant_id: variantId, quantity: 10 });
+    sellers.push(sellerId); variants.push({ productId, variantId });
+    await cart.addToCart(customer, { product_id: productId, variant_id: variantId, quantity: 1 });
+  }
+  await db('platform_offers').insert({ id: randomUUID(), name: 'Multi checkout saving', code: 'MULTI10', offer_type: 'flat', discount_value: 10, min_order_value: 0 });
+  const quote = await orders.checkout(customer, address, 'cod', undefined, true, 'MULTI10');
+  assert.equal(quote.platform_discount, 10);
+  assert.ok(quote.delivery_fee > 0 && quote.delivery_fee < 80, 'customer receives one route fee, not one fee per seller');
+  const placed = await orders.checkout(customer, address, 'cod', undefined, false, 'MULTI10');
+  const shipments = await db('seller_orders').where({ parent_order_id: placed.order_id });
+  assert.equal(shipments.length, 2);
+  assert.equal(Math.round(shipments.reduce((sum, s) => sum + Number(s.total_amount), 0) * 100), Math.round(placed.final_amount * 100));
+  await db('seller_orders').where({ parent_order_id: placed.order_id }).update({ status: 'ready_for_pickup' });
+  for (let i = 0; i < 2; i++) {
+    await db('delivery_partner_locations').update({ updated_at: new Date(), latitude: 19.07, longitude: 72.87 });
+    const available = await delivery.availableTasks(partner); assert.ok(available.length >= 1); assert.equal(Number(available[0].multi_seller_bonus_paise), 1000);
+    const task = available[0]; await delivery.acceptTask(partner, task.id); await delivery.progressTask(partner, task.id, 'PICKED_UP'); await delivery.progressTask(partner, task.id, 'IN_TRANSIT');
+    const shipment = await db('seller_orders').where({ id: task.seller_order_id }).first(); await delivery.progressTask(partner, task.id, 'DELIVERED', Math.round(Number(shipment.total_amount) * 100));
+  }
+  const order = await db('orders').where({ id: placed.order_id }).first(); assert.equal(order.status, '3_HOUR_RETURN_WINDOW');
+  const requested = await request(`/api/v1/orders/${placed.order_id}/requests`, 'POST', { kind: 'RETURN', reason: 'Both products arrived damaged' }); assert.equal(requested.status, 200);
+  const admin = await db('users as u').join('user_roles as ur', 'ur.user_id', 'u.id').where('ur.role_id', 4).select('u.id').first(); const adminToken = (await auth.createSession(admin.id, ['admin'])).accessToken;
+  assert.equal((await request(`/api/v1/admin/order-requests/${requested.body.data.id}`, 'PATCH', { action: 'APPROVE', note: 'Damage evidence accepted' }, adminToken)).status, 200);
+  for (let i = 0; i < 2; i++) {
+    await db('delivery_partner_locations').update({ updated_at: new Date(), latitude: 19.08, longitude: 72.88 });
+    const available = await delivery.availableReverseTasks(partner); assert.ok(available.length >= 1); const task = available[0]; await delivery.acceptReverseTask(partner, task.id); await delivery.progressReverseTask(partner, task.id, 'PICKED_UP'); await delivery.progressReverseTask(partner, task.id, 'IN_TRANSIT'); await delivery.progressReverseTask(partner, task.id, 'DELIVERED');
+  }
+  assert.equal((await request(`/api/v1/admin/order-requests/${requested.body.data.id}/fulfillment`, 'PATCH', { action: 'PICKUP_COMPLETED', note: 'Returned to both sellers' }, adminToken)).status, 200);
+  assert.equal((await request(`/api/v1/admin/order-requests/${requested.body.data.id}/fulfillment`, 'PATCH', { action: 'INSPECTION_PASSED', note: 'Damage confirmed at inspection' }, adminToken)).status, 200);
+  assert.equal((await request(`/api/v1/admin/order-requests/${requested.body.data.id}/refund`, 'POST', { reference: 'COD-REFUND-1' }, adminToken)).status, 403);
+  const superAdmin = await db('users as u').join('user_roles as ur', 'ur.user_id', 'u.id').where('ur.role_id', 5).select('u.id').first(); const superToken = (await auth.createSession(superAdmin.id, ['super_admin'])).accessToken;
+  assert.equal((await request(`/api/v1/admin/order-requests/${requested.body.data.id}/refund`, 'POST', { reference: 'COD-REFUND-1' }, superToken)).status, 200);
+  assert.equal((await db('refunds').where({ order_request_id: requested.body.data.id }).first()).status, 'COMPLETED');
+  assert.ok(await db('financial_transactions').where({ idempotency_key: `refund:${requested.body.data.id}` }).first());
+});
+
+test('database constraints reject orphans and transactions roll back completely', async () => {
+  await assert.rejects(db('ledger_entries').insert({ id: randomUUID(), transaction_id: randomUUID(), account_id: randomUUID(), direction: 'DEBIT', amount_paise: 1 }));
+  const marker = randomUUID();
+  await assert.rejects(db.transaction(async trx => { await trx('financial_accounts').insert({ id: marker, owner_type: 'PLATFORM', owner_id: marker, account_type: 'ROLLBACK_TEST' }); throw new Error('rollback'); }));
+  assert.equal(await db('financial_accounts').where({ id: marker }).first(), undefined);
+  const orphanItems = await db('seller_order_items as i').leftJoin('seller_orders as s', 's.id', 'i.seller_order_id').whereNull('s.id').count({ count: '*' }).first();
+  assert.equal(Number(orphanItems.count), 0);
+});
+
+test('invalid and expired JWTs fail and login brute force is rate limited', async () => {
+  assert.equal((await request('/api/v1/cart', 'GET', undefined, 'not-a-jwt')).status, 401);
+  const jwt = require('jsonwebtoken');
+  const session = await auth.createSession(customer, ['customer']);
+  const expired = jwt.sign({ sub: customer, roles: ['customer'], sessionId: session.sessionId }, process.env.JWT_ACCESS_SECRET, { expiresIn: -1, issuer: 'dripnow', audience: 'dripnow-client' });
+  assert.equal((await request('/api/v1/cart', 'GET', undefined, expired)).status, 401);
+  const attempts = [];
+  for (let i = 0; i < 22; i++) attempts.push(await request('/api/auth/login/email', 'POST', { email: `missing${i}@example.test`, password: 'WrongPassword123!' }, null));
+  assert.ok(attempts.some(result => result.status === 429));
 });

@@ -42,6 +42,7 @@ export interface SellerProduct {
     inventory?: { quantity: number; low_stock_threshold: number };
   }>;
 }
+export interface SellerSettlement { id: string; seller_order_id: string; gross_paise: number; deductions_paise: number; payable_paise: number; status: string; eligible_at: string; payout_id?: string; }
 
 export const sellerApi = {
   async getDashboard(): Promise<SellerDashboard> {
@@ -62,6 +63,10 @@ export const sellerApi = {
 
   async getProducts(): Promise<SellerProduct[]> {
     const res = await api.get<ApiResponse<SellerProduct[]>>('/v1/products/public');
+    return res.data.data ?? [];
+  },
+  async getEarnings(): Promise<SellerSettlement[]> {
+    const res = await api.get<ApiResponse<SellerSettlement[]>>('/v1/seller/earnings');
     return res.data.data ?? [];
   },
 };

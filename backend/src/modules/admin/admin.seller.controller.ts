@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { db } from '../../config/database';
 import { sendSuccess, sendError, sendNotFound, sendBadRequest } from '../../utils/response';
+import { notify } from '../../services/notification.service';
 
 export async function listSellers(req: Request, res: Response): Promise<void> {
   try {
@@ -106,6 +107,7 @@ export async function approveSeller(req: Request, res: Response): Promise<void> 
       action: 'ADMIN_APPROVE_SELLER',
       metadata: JSON.stringify({ seller_id: sellerId, applicant_user_id: seller.user_id, entity_type: 'seller_profile' }),
     });
+    await notify(seller.user_id, 'SELLER_APPROVED', 'Seller application approved', 'Your seller account is approved.');
 
     const updated = await db('seller_profiles').where({ id: sellerId }).first();
     sendSuccess(res, updated, 'Seller application approved successfully');
@@ -157,6 +159,7 @@ export async function rejectSeller(req: Request, res: Response): Promise<void> {
       action: 'ADMIN_REJECT_SELLER',
       metadata: JSON.stringify({ seller_id: sellerId, reason, entity_type: 'seller_profile' }),
     });
+    await notify(seller.user_id, 'SELLER_REJECTED', 'Seller application rejected', reason);
 
     const updated = await db('seller_profiles').where({ id: sellerId }).first();
     sendSuccess(res, updated, 'Seller application rejected');

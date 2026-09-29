@@ -1,6 +1,6 @@
 # DripNow Dev — E-Commerce Platform
 
-Day 1–5 implementation, provider configuration, administrator bootstrap, tests and remaining deployment gates are documented in [backend/READINESS.md](backend/READINESS.md).
+Day 1–8 implementation, provider configuration, administrator bootstrap, tests and remaining deployment gates are documented in [backend/READINESS.md](backend/READINESS.md).
 
 ## Project Structure
 

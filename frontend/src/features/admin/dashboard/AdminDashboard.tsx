@@ -4,8 +4,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout/DashboardLayout';
 import { adminApi, type PendingSeller } from '../api/admin.api';
 import '@/components/layout/DashboardLayout/DashboardLayout.css';
+import './AdminWorkspace.css';
 
-type Section = 'overview' | 'sellers' | 'delivery' | 'users' | 'orders' | 'audit' | 'settings';
+type Section = 'overview' | 'sellers' | 'delivery' | 'users' | 'orders' | 'products' | 'reports' | 'finance' | 'audit' | 'settings';
 
 export const AdminDashboard: React.FC = () => {
   const [section, setSection] = useState<Section>('overview');
@@ -81,13 +82,16 @@ export const AdminDashboard: React.FC = () => {
   const suspendedCount = allSellers.filter(s => s.status === 'suspended').length;
 
   const navItems = [
-    ...(useAuthStore.getState().user?.roles.includes('super_admin') ? [{ label: 'Platform Pricing', icon: '⚙️', active: section === 'settings', onClick: () => setSection('settings') }] : []),
     { label: 'Overview',         icon: '📊', active: section === 'overview',  onClick: () => setSection('overview') },
     { label: 'Seller Approvals', icon: '🏪', active: section === 'sellers',   onClick: () => setSection('sellers'),  badge: pendingCount },
     { label: 'Delivery Partners',icon: '🏍️', active: section === 'delivery',  onClick: () => setSection('delivery') },
-    { label: 'Users',            icon: '👥', active: section === 'users',     onClick: () => setSection('users') },
     { label: 'Orders',           icon: '📦', active: section === 'orders',    onClick: () => setSection('orders') },
+    { label: 'Products',         icon: '🧾', active: section === 'products',  onClick: () => setSection('products') },
+    { label: 'Users',            icon: '👥', active: section === 'users',     onClick: () => setSection('users') },
+    { label: 'Finance', icon: '💰', active: section === 'finance', onClick: () => setSection('finance') },
+    { label: 'Reports', icon: '📈', active: section === 'reports', onClick: () => setSection('reports') },
     { label: 'Audit Logs',       icon: '🔍', active: section === 'audit',     onClick: () => setSection('audit') },
+    ...(useAuthStore.getState().user?.roles.includes('super_admin') ? [{ label: 'Platform Pricing', icon: '⚙️', active: section === 'settings', onClick: () => setSection('settings') }] : []),
   ];
 
   if (loading) {
@@ -109,7 +113,8 @@ export const AdminDashboard: React.FC = () => {
 
       {/* ── OVERVIEW ── */}
       {section === 'overview' && (
-        <>
+        <section className="admin-workspace">
+          <header className="admin-page-header"><div><span className="admin-eyebrow">Operations command center</span><h1>Platform overview</h1><p>Review seller health and the work currently requiring attention.</p></div><span className="admin-header-count">Live operations</span></header>
           <div className="dash-metrics">
             <div className="dash-metric-card">
               <div className="dash-metric-card__icon">⏳</div>
@@ -153,16 +158,13 @@ export const AdminDashboard: React.FC = () => {
             onSuspend={handleSuspend}
             actionLoading={actionLoading}
           />
-        </>
+        </section>
       )}
 
       {/* ── SELLERS ── */}
       {section === 'sellers' && (
-        <>
-          <div className="dash-section-header">
-            <h2 className="dash-section-title">Seller Management</h2>
-            <span style={{ fontSize: '0.85rem', color: 'hsl(220,10%,55%)' }}>{allSellers.length} seller{allSellers.length !== 1 ? 's' : ''}</span>
-          </div>
+        <section className="admin-workspace">
+          <header className="admin-page-header"><div><span className="admin-eyebrow">Marketplace governance</span><h1>Seller management</h1><p>Review applications and manage approved marketplace businesses.</p></div><span className="admin-header-count">{allSellers.length} sellers</span></header>
           <SellerApplicationsTable
             sellers={allSellers}
             onApprove={handleApprove}
@@ -170,11 +172,11 @@ export const AdminDashboard: React.FC = () => {
             onSuspend={handleSuspend}
             actionLoading={actionLoading}
           />
-        </>
+        </section>
       )}
 
       {/* ── PLACEHOLDER SECTIONS ── */}
-      {['delivery', 'users', 'orders', 'audit', 'settings'].includes(section) && <AdminOperations section={section} />}
+      {['delivery', 'users', 'orders', 'products', 'reports', 'finance', 'audit', 'settings'].includes(section) && <AdminOperations section={section} />}
 
     </DashboardLayout>
   );

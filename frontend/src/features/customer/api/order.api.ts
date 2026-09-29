@@ -17,6 +17,7 @@ export interface CheckoutResponse {
 export interface OrderItem {
   id: string;
   product_id: string;
+  variant_id?: string;
   product_name: string;
   quantity: number;
   unit_price: number;

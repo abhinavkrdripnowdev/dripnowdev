@@ -54,6 +54,8 @@ export interface Product {
   base_price: number;
   is_active: boolean;
   availability_status: ProductAvailabilityStatus;
+  moderation_status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
+  moderation_note?: string | null;
   category?: Category | null;
   variants?: ProductVariant[];
   images?: ProductImage[];

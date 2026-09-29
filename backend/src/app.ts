@@ -21,6 +21,8 @@ import sellerOrderRoutes from './modules/seller_order/seller_order.routes';
 import offerRoutes from './modules/offer/offer.routes';
 import cartRoutes from './modules/cart/cart.routes';
 import orderRoutes from './modules/order/order.routes';
+import financeRoutes from './modules/finance/finance.routes';
+import notificationRoutes from './modules/notification/notification.routes';
 import { checkDatabaseConnection } from './config/database';
 
 const app = express();
@@ -70,6 +72,8 @@ app.use('/api/v1/cart', cartRoutes);
 app.use('/api/v1/orders', orderRequestRoutes);
 app.use('/api/v1/orders', orderRoutes);
 app.use('/api/v1/payments', paymentRoutes);
+app.use('/api/v1/finance', financeRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/delivery', deliveryRoutes);
 app.use('/api/v1/admin/delivery', deliveryAdminRoutes);
 app.use('/api/v1/admin/order-requests', adminOrderRequestRoutes);
@@ -98,7 +102,8 @@ async function startServer() {
     return;
   }
 
-  const timer = setInterval(() => { maintenance().catch(error => console.error('Maintenance failed', error)); }, 60000);
+  let maintenanceRunning = false;
+  const timer = setInterval(() => { if (maintenanceRunning) return; maintenanceRunning = true; maintenance().catch(error => console.error('Maintenance failed', error)).finally(() => { maintenanceRunning = false; }); }, 60000);
   timer.unref();
   const server = app.listen(PORT, () => {
     console.log(`\n🚀 DripNow API running on http://localhost:${PORT}`);
