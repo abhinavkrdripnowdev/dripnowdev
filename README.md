@@ -36,3 +36,23 @@ npm run seed
 ## Environment Variables
 
 See `backend/.env.example` for all required variables.
+
+## Postman API Documentation & Maintenance
+
+All backend API endpoints are fully documented and maintained via Postman artifacts located in `backend/`:
+
+- **Collection**: [backend/DripNow_Postman_Collection.json](file:///e:/dripnow%20dev/backend/DripNow_Postman_Collection.json)
+- **Environment**: [backend/DripNow_Postman_Environment.json](file:///e:/dripnow%20dev/backend/DripNow_Postman_Environment.json)
+
+### Importing to Postman:
+1. Open Postman app.
+2. Click **Import** and select `DripNow_Postman_Collection.json` and `DripNow_Postman_Environment.json`.
+3. Select the `DripNow Local Environment` from the environment dropdown.
+
+### Regenerating / Updating Postman Collection:
+Whenever new API endpoints or schemas are added to the backend, regenerate the collection with:
+```bash
+cd backend
+npm run generate:postman
+```
+

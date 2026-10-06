@@ -33,13 +33,22 @@ export const SellerDashboard: React.FC = () => {
       setLoading(true);
       setError(null);
       const [dash, ords, earnings] = await Promise.all([
-        sellerApi.getDashboard(),
-        sellerApi.getOrders(),
-        sellerApi.getEarnings(),
+        sellerApi.getDashboard().catch(() => null),
+        sellerApi.getOrders().catch(() => []),
+        sellerApi.getEarnings().catch(() => []),
       ]);
-      setDashboard(dash);
-      setOrders(ords);
-      setSettlements(earnings);
+      setDashboard(dash ?? {
+        seller_id: '',
+        business_name: '',
+        status: 'draft',
+        total_products: 0,
+        low_stock_products_count: 0,
+        pending_orders_count: 0,
+        total_orders_count: 0,
+        total_earnings: 0,
+      });
+      setOrders(ords ?? []);
+      setSettlements(earnings ?? []);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to load dashboard';
       setError(msg);

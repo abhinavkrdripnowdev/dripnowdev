@@ -7,6 +7,7 @@ import { cartApi, type CartResponse } from '../api/cart.api';
 import { orderApi, type Order } from '../api/order.api';
 import api from '@/lib/api';
 import './CustomerDashboard.css';
+import { CustomerAccount } from './CustomerAccount';
 
 interface Product {
   id: string;
@@ -20,8 +21,23 @@ interface Product {
   seller_id: string;
 }
 
+const styleCategories = [
+  { label: 'For you', icon: '✦', value: 'All', tone: 'violet' },
+  { label: 'Women', icon: '◒', value: 'Fashion', tone: 'rose' },
+  { label: 'Men', icon: '◐', value: 'Fashion', tone: 'blue' },
+  { label: 'Ethnic', icon: '❋', value: 'Fashion', tone: 'saffron' },
+  { label: 'Beauty', icon: '✿', value: 'Beauty', tone: 'pink' },
+  { label: 'Accessories', icon: '◇', value: 'Accessories', tone: 'mint' },
+  { label: 'Footwear', icon: '↗', value: 'Footwear', tone: 'sky' },
+  { label: 'Home', icon: '⌂', value: 'Home & Furniture', tone: 'peach' },
+  { label: 'Jewellery', icon: '♢', value: 'Jewellery', tone: 'gold' },
+  { label: 'Gifting', icon: '⌑', value: 'Gifting', tone: 'lilac' },
+];
+
+const categoryName = (product: Product) => typeof product.category === 'string' ? product.category : product.category?.name ?? '';
+
 export const CustomerDashboard: React.FC = () => {
-  const { user, clearAuth, updateUser } = useAuthStore();
+  const { user } = useAuthStore();
 
   const [activeTab, setActiveTab] = useState<'shop' | 'orders' | 'wishlist' | 'addresses' | 'profile'>('shop');
   const [searchQuery, setSearchQuery] = useState('');
@@ -47,6 +63,9 @@ export const CustomerDashboard: React.FC = () => {
   const [message, setMessage] = useState('');
   const [quote, setQuote] = useState<any>(null);
   const [couponCode, setCouponCode] = useState('');
+  const [guestCartCount, setGuestCartCount] = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem('guestCart') || '[]').length; } catch { return 0; }
+  });
   const [checkoutKey, setCheckoutKey] = useState(() => crypto.randomUUID());
   useEffect(() => { setQuote(null); setCheckoutKey(crypto.randomUUID()); }, [cart, selectedAddressId, paymentMethod, couponCode]);
 
@@ -99,7 +118,7 @@ export const CustomerDashboard: React.FC = () => {
 
   const handleAddToCart = async (product: Product, variantId?: string) => {
     if (!variantId && (product.variants?.length ?? 0) > 1) { setDetail(product); setSelectedVariant(product.variants![0].id); return; }
-    if (!user) { const pending = JSON.parse(sessionStorage.getItem('guestCart') || '[]'); pending.push({ product_id: product.id, variant_id: variantId || product.variants?.[0]?.id, quantity: 1 }); sessionStorage.setItem('guestCart', JSON.stringify(pending)); setMessage('Added to your guest cart. Sign in at checkout.'); return; }
+    if (!user) { const pending = JSON.parse(sessionStorage.getItem('guestCart') || '[]'); pending.push({ product_id: product.id, variant_id: variantId || product.variants?.[0]?.id, quantity: 1 }); sessionStorage.setItem('guestCart', JSON.stringify(pending)); setGuestCartCount(pending.length); setMessage('Added to your guest cart. Sign in at checkout.'); return; }
     try {
       setIsLoading(true);
       const updatedCart = await cartApi.addToCart(product.id, 1, variantId || product.variants?.[0]?.id);
@@ -150,8 +169,8 @@ export const CustomerDashboard: React.FC = () => {
     }
   };
 
-  const cartCount = cart?.grouped_items?.reduce((acc, group) =>
-    acc + group.items.reduce((sum, item) => sum + item.quantity, 0), 0) || 0;
+  const cartCount = user ? (cart?.grouped_items?.reduce((acc, group) =>
+    acc + group.items.reduce((sum, item) => sum + item.quantity, 0), 0) || 0) : guestCartCount;
   const cartSubtotal = cart?.total_amount || 0;
 
   const filteredProducts = products.filter((p) => {
@@ -162,181 +181,125 @@ export const CustomerDashboard: React.FC = () => {
 
   if (sort === 'price_asc') filteredProducts.sort((a,b) => Number(a.base_price) - Number(b.base_price));
   if (sort === 'price_desc') filteredProducts.sort((a,b) => Number(b.base_price) - Number(a.base_price));
+  const wishlistCount = wishlist.length;
+  const browseAll = () => {
+    setActiveTab('shop');
+    setSelectedCategory('All');
+    requestAnimationFrame(() => document.querySelector('.product-grid')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  };
   return (
     <div className="customer-app">
-      {message && <p role="status" style={{ padding: 16, background: '#fff8db' }}>{message} <button onClick={() => setMessage('')}>Dismiss</button></p>}
-      {!user && <p style={{ padding: 12 }}>Browse freely. <a href="/login">Sign in to checkout</a> · <a href="/register">Create account</a></p>}
-      {/* ── 1. Amazon/Flipkart Dual Navigation Header ────────────────────── */}
+      {message && <div className="customer-toast" role="status"><span>{message}</span><button onClick={() => setMessage('')} aria-label="Dismiss message">×</button></div>}
+      <div className="customer-announcement">
+        <span>⚡ Express delivery from nearby sellers</span>
+        <span className="customer-announcement__desktop">New here? Enjoy a smoother way to shop local.</span>
+      </div>
       <header className="amz-header">
         <div className="amz-header__top">
-          {/* Brand Logo */}
-          <div className="amz-brand" onClick={() => setActiveTab('shop')}>
-            <span className="amz-brand__logo">Drip<span className="amz-brand__swoosh">Now</span></span>
-          </div>
-
-          {/* Location Pincode */}
-          <div className="amz-location">
-            <span className="amz-location__icon">📍</span>
-            <div className="amz-location__text">
-              <span className="amz-location__sub">Deliver to {user?.full_name?.split(' ')[0] || 'Customer'}</span>
-              <span className="amz-location__main">{addresses.find(a => a.id === selectedAddressId)?.city || 'Choose an address'}</span>
-            </div>
-          </div>
-
-          {/* Search Bar */}
+          <button className="amz-brand" onClick={() => setActiveTab('shop')} aria-label="DripNow home">
+            <span className="amz-brand__mark">D</span>
+            <span className="amz-brand__logo">dripnow<span className="amz-brand__dot">.</span></span>
+          </button>
           <div className="amz-search">
-            <select
-              className="amz-search__cat"
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-            >
-              <option value="All">All Categories</option>
-              {Array.from(new Set(products.map(p => typeof p.category === 'string' ? p.category : p.category?.name).filter(Boolean))).map(name => <option key={name} value={name}>{name}</option>)}
-            </select>
+            <span className="amz-search__icon">⌕</span>
             <input
               type="text"
               className="amz-search__input"
-              placeholder="Search products on DripNow..."
+              placeholder="Search styles, products or brands"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
-            <button className="amz-search__btn" aria-label="Search">🔍</button>
+            {searchQuery && <button className="amz-search__clear" onClick={() => setSearchQuery('')} aria-label="Clear search">×</button>}
           </div>
-
-          {/* User Nav Actions */}
           <div className="amz-nav-actions">
-            <div className="amz-nav-item" onClick={() => setActiveTab('profile')}>
-              <span className="amz-nav-item__sub">Hello, {user?.full_name?.split(' ')[0] || 'User'}</span>
-              <span className="amz-nav-item__main">Account & Orders ▾</span>
-            </div>
-
-            <div className="amz-nav-item" onClick={() => setActiveTab('orders')}>
-              <span className="amz-nav-item__sub">Returns</span>
-              <span className="amz-nav-item__main">& Orders</span>
-            </div>
-
+            <button className="amz-nav-item" onClick={() => { setActiveTab('shop'); requestAnimationFrame(() => document.querySelector('.style-category-rail')?.scrollIntoView({ behavior: 'smooth' })); }}><span>▦</span><b>Categories</b></button>
+            <button className="amz-nav-item" onClick={browseAll}><span>◎</span><b>Discover</b></button>
+            <button className="amz-nav-item" onClick={() => setActiveTab('wishlist')}><span>♡</span><b>Wishlist</b>{wishlistCount > 0 && <em>{wishlistCount}</em>}</button>
             <button className="amz-cart-btn" onClick={() => setIsCartOpen(true)} id="open-cart-btn">
-              <span className="amz-cart-icon">🛒</span>
+              <span className="amz-cart-icon">⌑</span>
               <span className="amz-cart-badge">{cartCount}</span>
-              <span style={{ fontSize: '0.85rem', fontWeight: 700, marginLeft: 12 }}>Cart</span>
+              <b>Cart</b>
             </button>
-
-            <button className="amz-logout-btn" onClick={async () => { try { await api.post('/auth/logout'); } finally { clearAuth(); window.location.href = '/'; } }} title="Log Out of DripNow">
-              Log Out
-            </button>
+            {user ? <button className="amz-nav-item" onClick={() => setActiveTab('profile')}><span>♙</span><b>{user.full_name?.split(' ')[0] || 'Account'}</b></button> : <a className="amz-nav-item" href="/login"><span>♙</span><b>Sign in</b></a>}
           </div>
         </div>
-
-        {/* Subnav Ribbon */}
         <nav className="amz-subnav">
-          <div className="amz-subnav__item amz-subnav__item--highlight" onClick={() => setActiveTab('shop')}>
-            ☰ All Products
-          </div>
-          <div className="amz-subnav__item" onClick={() => setSelectedCategory('Mobiles')}>Mobiles</div>
-          <div className="amz-subnav__item" onClick={() => setSelectedCategory('Electronics')}>Electronics</div>
-          <div className="amz-subnav__item" onClick={() => setSelectedCategory('Fashion')}>Fashion</div>
-          <div className="amz-subnav__item" onClick={() => setSelectedCategory('Laptops')}>Laptops & PC</div>
-          <div className="amz-subnav__item" onClick={() => setSelectedCategory('Home & Furniture')}>Home & Kitchen</div>
-          <div className="amz-subnav__item" style={{ color: '#ffe500' }}>⚡ Local delivery</div>
-          <div className="amz-subnav__item" onClick={() => setActiveTab('orders')}>My Orders</div>
-          <div className="amz-subnav__item" onClick={() => setActiveTab('wishlist')}>Wishlist ({cartCount})</div>
+          <button className={activeTab === 'shop' ? 'is-active' : ''} onClick={() => setActiveTab('shop')}>Home</button>
+          <button onClick={() => { setActiveTab('shop'); setSelectedCategory('Fashion'); }}>Women</button>
+          <button onClick={() => { setActiveTab('shop'); setSelectedCategory('Fashion'); }}>Men</button>
+          <button onClick={() => { setActiveTab('shop'); setSelectedCategory('Beauty'); }}>Beauty</button>
+          <button onClick={() => { setActiveTab('shop'); setSelectedCategory('Accessories'); }}>Accessories</button>
+          <button onClick={() => { setActiveTab('shop'); setSelectedCategory('Footwear'); }}>Footwear</button>
+          <button className="amz-subnav__offer" onClick={browseAll}>The drop edit</button>
         </nav>
       </header>
-
-      {/* ── 2. Flipkart Top Category Circles Strip ───────────────────────── */}
-      <div className="fk-cat-strip">
-        <div className="fk-cat-strip__inner">
-          <div className="fk-cat-item" onClick={() => setSelectedCategory('All')}>
-            <div className="fk-cat-item__icon">🛍️</div>
-            <span className="fk-cat-item__label">All Deals</span>
-          </div>
-          <div className="fk-cat-item" onClick={() => setSelectedCategory('Mobiles')}>
-            <div className="fk-cat-item__icon">📱</div>
-            <span className="fk-cat-item__label">Mobiles</span>
-          </div>
-          <div className="fk-cat-item" onClick={() => setSelectedCategory('Electronics')}>
-            <div className="fk-cat-item__icon">🎧</div>
-            <span className="fk-cat-item__label">Electronics</span>
-          </div>
-          <div className="fk-cat-item" onClick={() => setSelectedCategory('Fashion')}>
-            <div className="fk-cat-item__icon">👟</div>
-            <span className="fk-cat-item__label">Fashion</span>
-          </div>
-          <div className="fk-cat-item" onClick={() => setSelectedCategory('Laptops')}>
-            <div className="fk-cat-item__icon">💻</div>
-            <span className="fk-cat-item__label">Laptops</span>
-          </div>
-          <div className="fk-cat-item" onClick={() => setSelectedCategory('Home & Furniture')}>
-            <div className="fk-cat-item__icon">🛋️</div>
-            <span className="fk-cat-item__label">Furniture</span>
-          </div>
-          <div className="fk-cat-item">
-            <div className="fk-cat-item__icon">⚡</div>
-            <span className="fk-cat-item__label">Local delivery</span>
-          </div>
-          <div className="fk-cat-item">
-            <div className="fk-cat-item__icon">✈️</div>
-            <span className="fk-cat-item__label">New arrivals</span>
-          </div>
-        </div>
-      </div>
-
-      {/* ── 3. Main Shopping Area ────────────────────────────────────────── */}
       <main className="customer-main-content">
         {activeTab === 'shop' && (
           <>
-            {/* Promo Banner Carousel */}
-            <div className="fk-hero-banner">
-              <div className="fk-hero-banner__content">
-                <span className="fk-hero-badge">Discover DripNow</span>
-                <h1 className="fk-hero-title">Everyday finds from local sellers</h1>
-                <p className="fk-hero-sub">
-                  Browse products from approved sellers. Choose your address and review the complete price before you order.
-                </p>
-                <button className="fk-hero-btn" onClick={() => { setSelectedCategory('All'); document.querySelector('.product-grid')?.scrollIntoView({ behavior: 'smooth' }); }}>
-                  Explore products →
-                </button>
-              </div>
-            </div>
+            <section className="style-category-rail" aria-label="Shop by category">
+              {styleCategories.map((category) => <button key={category.label} className={`style-category ${selectedCategory === category.value ? 'is-active' : ''}`} onClick={() => setSelectedCategory(category.value)}>
+                <span className={`style-category__art style-category__art--${category.tone}`}>{category.icon}</span>
+                <span>{category.label}</span>
+              </button>)}
+            </section>
 
-            {/* Deal of the Day Product Grid */}
-            <div className="deal-section">
+            <section className="fk-hero-banner">
+              <div className="fk-hero-banner__content">
+                <span className="fk-hero-badge">THE NOW EDIT · 2026</span>
+                <h1 className="fk-hero-title">Fresh fits.<br/><i>At your door.</i></h1>
+                <p className="fk-hero-sub">Curated drops from approved local sellers, delivered while the look is still on your mind.</p>
+                <div className="fk-hero-actions"><button className="fk-hero-btn" onClick={browseAll}>Shop the drop <span>↗</span></button><button className="fk-hero-link" onClick={() => setActiveTab('orders')}>Track an order</button></div>
+              </div>
+              <div className="fk-hero-banner__visual" aria-hidden="true"><div className="hero-orbit hero-orbit--one"/><div className="hero-orbit hero-orbit--two"/><span className="hero-figure">DRIP</span><div className="hero-delivery-pill"><b>Under 60 min</b><small>in supported zones</small></div></div>
+            </section>
+
+            <section className="customer-perks" aria-label="Shopping benefits">
+              <div><span>⚡</span><p><b>Fast local delivery</b><small>From nearby approved sellers</small></p></div>
+              <div><span>◉</span><p><b>Verified products</b><small>Moderated marketplace catalogue</small></p></div>
+              <div><span>↺</span><p><b>Simple returns</b><small>Clear return and exchange flow</small></p></div>
+              <div><span>✓</span><p><b>Secure checkout</b><small>COD and verified online payments</small></p></div>
+            </section>
+
+            <section className="deal-section">
               <div className="deal-header">
                 <div className="deal-header__left">
-                  <h2 className="deal-title">Shop products</h2>
-
+                  <span className="section-kicker">CURATED FOR YOU</span>
+                  <h2 className="deal-title">Trending right now</h2>
+                  <p>Fresh finds, ready when you are.</p>
                 </div>
-                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#2874f0', cursor: 'pointer' }}>
-                  Browse all products ({filteredProducts.length}) →
-                </span>
+                <button className="deal-view-all" onClick={() => { setSelectedCategory('All'); setSearchQuery(''); }}>View all <span>({filteredProducts.length})</span> ↗</button>
               </div>
-
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', padding: 12 }}><label>Maximum price ₹ <input type="number" min="0" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} /></label><label>Size <input value={sizeFilter} onChange={e => setSizeFilter(e.target.value)} /></label><label>Color <input value={colorFilter} onChange={e => setColorFilter(e.target.value)} /></label><label>Sort <select value={sort} onChange={e => setSort(e.target.value)}><option value="newest">Newest</option><option value="price_asc">Price: low to high</option><option value="price_desc">Price: high to low</option></select></label></div>
+              <div className="product-filters">
+                <label><span>Max price</span><div className="filter-input"><b>₹</b><input type="number" min="0" placeholder="Any" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} /></div></label>
+                <label><span>Size</span><input placeholder="e.g. M" value={sizeFilter} onChange={e => setSizeFilter(e.target.value)} /></label>
+                <label><span>Colour</span><input placeholder="e.g. Black" value={colorFilter} onChange={e => setColorFilter(e.target.value)} /></label>
+                <label><span>Sort by</span><select value={sort} onChange={e => setSort(e.target.value)}><option value="newest">Latest arrivals</option><option value="price_asc">Price: low to high</option><option value="price_desc">Price: high to low</option></select></label>
+                {(maxPrice || sizeFilter || colorFilter) && <button className="filter-reset" onClick={() => { setMaxPrice(''); setSizeFilter(''); setColorFilter(''); }}>Clear filters</button>}
+              </div>
               <div className="product-grid">
                 {filteredProducts.map((p) => (
                   <div className="product-card" key={p.id}>
-
                     <div className="product-card__img-wrap">
                       <img src={p.images?.[0]?.image_url || '/favicon.svg'} alt={p.name} className="product-card__img" />
+                      <span className="product-card__badge">NEW</span>
+                      <button className="product-card__wish" aria-label={`Save ${p.name}`} onClick={async () => { if (!user) { window.location.href = '/login'; return; } try { await api.post('/customer/wishlist', { product_id: p.id }); setWishlist((await api.get('/customer/wishlist')).data.data); setMessage('Saved to wishlist'); } catch { setMessage('Unable to save item'); } }}>♡</button>
+                      <button className="product-card__quick" onClick={() => { setDetail(p); setSelectedVariant(p.variants?.[0]?.id ?? ''); }}>Quick view</button>
                     </div>
-                    <h4 className="product-card__title"><button onClick={() => { setDetail(p); setSelectedVariant(p.variants?.[0]?.id ?? ''); }}>{p.name}</button></h4>
-                    <button onClick={async () => { if (!user) { window.location.href = '/login'; return; } try { await api.post('/customer/wishlist', { product_id: p.id }); setWishlist((await api.get('/customer/wishlist')).data.data); setMessage('Saved to wishlist'); } catch { setMessage('Unable to save item'); } }}>♡ Save</button>
-
+                    <span className="product-card__category">{categoryName(p) || 'DripNow edit'}</span>
+                    <h3 className="product-card__title"><button onClick={() => { setDetail(p); setSelectedVariant(p.variants?.[0]?.id ?? ''); }}>{p.name}</button></h3>
                     <div className="product-card__price-row">
                       <span className="current-price">₹{Number(p.base_price).toLocaleString('en-IN')}</span>
-
-
                     </div>
-
-
-
-                    <button className="add-cart-btn" onClick={() => handleAddToCart(p)} disabled={isLoading}>
-                      Add to Cart
+                    <button className="add-cart-btn" aria-label="Add to Cart" onClick={() => handleAddToCart(p)} disabled={isLoading}>
+                      Add to bag <span>+</span>
                     </button>
                   </div>
                 ))}
+                {filteredProducts.length === 0 && <div className="product-empty"><span>⌕</span><h3>No styles found</h3><p>Try a broader search or clear your filters.</p><button onClick={() => { setSearchQuery(''); setSelectedCategory('All'); setMaxPrice(''); setSizeFilter(''); setColorFilter(''); }}>Reset shopping filters</button></div>}
               </div>
-            </div>
+            </section>
+
+            <section className="editorial-banner"><span>THE DRIPNOW PROMISE</span><h2>Local choice.<br/>Main-character speed.</h2><p>Discover standout products from sellers in your city and see the complete price before you place the order.</p><button onClick={browseAll}>Find your next favourite ↗</button></section>
           </>
         )}
 
@@ -406,38 +369,7 @@ export const CustomerDashboard: React.FC = () => {
 
         {/* Sub-view: Profile */}
         {activeTab === 'profile' && (
-          <div className="deal-section">
-            <h2 className="deal-title" style={{ marginBottom: 16 }}>Account Information</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-              <div style={{ padding: 16, background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0' }}>
-                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Full Name</span>
-                <div style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>{user?.full_name}</div>
-              </div>
-              <div style={{ padding: 16, background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0' }}>
-                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Email Address</span>
-                <div style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>{user?.email}</div>
-              </div>
-              <div style={{ padding: 16, background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0' }}>
-                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Phone Number</span>
-                <div style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>{user?.phone}</div>
-              </div>
-              <div style={{ padding: 16, background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0' }}>
-                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>User Handle</span>
-                <div style={{ fontSize: '1rem', fontWeight: 700, color: '#2874f0' }}>@{user?.username}</div>
-              </div>
-            </div>
-
-            <form onSubmit={async e => { e.preventDefault(); const f = new FormData(e.currentTarget); try { const full_name = String(f.get('name')); await api.put('/customer/profile', { full_name }); updateUser({ full_name }); setMessage('Profile updated'); } catch { setMessage('Unable to update profile'); } }}><label>Full name <input name="name" defaultValue={user?.full_name} minLength={2} required /></label><button>Save profile</button> <a href="/forgot-password">Change password</a></form>
-            <div style={{ marginTop: 24, display: 'flex', gap: 16 }}>
-              <button
-                className="checkout-btn"
-                style={{ width: 'auto', padding: '10px 24px' }}
-                onClick={() => setActiveTab('addresses')}
-              >
-                Manage Saved Addresses
-              </button>
-            </div>
-          </div>
+          <CustomerAccount orders={orders.length} addresses={addresses.length} wishlist={wishlist.length} onNavigate={setActiveTab} />
         )}
 
         {/* Sub-view: Addresses */}
@@ -554,56 +486,59 @@ export const CustomerDashboard: React.FC = () => {
         </div>
       )}
 
-      {detail && <div className="cart-drawer-overlay" onClick={() => setDetail(null)}><section className="cart-drawer" onClick={e => e.stopPropagation()} style={{ padding: 24 }}><button onClick={() => setDetail(null)}>Close</button><h2>{detail.name}</h2><p>{detail.description}</p>{detail.images?.map(img => <img key={img.image_url} src={img.image_url} alt={detail.name} style={{ maxWidth: 200 }} />)}<label>Size / color <select value={selectedVariant} onChange={e => setSelectedVariant(e.target.value)}>{detail.variants?.map(v => <option key={v.id} value={v.id}>{v.size || 'Standard'} {v.color} · ₹{Number(v.price_override ?? detail.base_price)} · Stock {v.inventory?.quantity ?? 0}</option>)}</select></label><button onClick={() => void handleAddToCart(detail, selectedVariant)}>Add to cart</button></section></div>}
-      {/* ── 5. Amazon Multi-Column Footer ───────────────────────────────── */}
+      {detail && <div className="cart-drawer-overlay" onClick={() => setDetail(null)}><section className="product-detail-drawer" onClick={e => e.stopPropagation()}><button className="product-detail-drawer__close" onClick={() => setDetail(null)}>×</button><div className="product-detail-drawer__gallery">{detail.images?.length ? detail.images.map(img => <img key={img.image_url} src={img.image_url} alt={detail.name} />) : <img src="/favicon.svg" alt={detail.name}/>}</div><span className="section-kicker">{categoryName(detail)}</span><h2>{detail.name}</h2><p>{detail.description}</p><strong>₹{Number(detail.base_price).toLocaleString('en-IN')}</strong><label>Choose size / colour<select value={selectedVariant} onChange={e => setSelectedVariant(e.target.value)}>{detail.variants?.map(v => <option key={v.id} value={v.id}>{v.size || 'Standard'} {v.color} · ₹{Number(v.price_override ?? detail.base_price)} · Stock {v.inventory?.quantity ?? 0}</option>)}</select></label><button className="checkout-btn" onClick={() => void handleAddToCart(detail, selectedVariant)}>Add to bag</button></section></div>}
+
+      <nav className="customer-mobile-nav" aria-label="Mobile navigation">
+        <button className={activeTab === 'shop' ? 'is-active' : ''} onClick={() => setActiveTab('shop')}><span>⌂</span>Home</button>
+        <button onClick={() => { setActiveTab('shop'); requestAnimationFrame(() => document.querySelector('.style-category-rail')?.scrollIntoView({ behavior: 'smooth' })); }}><span>▦</span>Categories</button>
+        <button onClick={browseAll}><span>◎</span>Discover</button>
+        <button className={activeTab === 'wishlist' ? 'is-active' : ''} onClick={() => setActiveTab('wishlist')}><span>♡</span>Wishlist</button>
+        <button onClick={() => setIsCartOpen(true)}><span>⌑</span>Bag{cartCount > 0 && <em>{cartCount}</em>}</button>
+      </nav>
+
       <footer className="amz-footer">
         <div className="amz-footer__back-top" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
           Back to top ↑
         </div>
 
         <div className="amz-footer__content">
+          <div className="amz-footer__brand">
+            <span className="amz-brand__logo">dripnow<span className="amz-brand__dot">.</span></span>
+            <p>Great local finds, delivered at the speed of now.</p>
+            <div className="footer-socials"><a href="#instagram">ig</a><a href="#facebook">f</a><a href="#twitter">x</a></div>
+          </div>
           <div>
-            <h4 className="amz-footer__col-title">Get to Know Us</h4>
+            <h4 className="amz-footer__col-title">Shop</h4>
             <ul className="amz-footer__links">
-              <li><a href="#about" className="amz-footer__link">About DripNow</a></li>
-              <li><a href="#careers" className="amz-footer__link">Careers</a></li>
-              <li><a href="#press" className="amz-footer__link">Press Releases</a></li>
-              <li><a href="#science" className="amz-footer__link">DripNow Science</a></li>
+              <li><button onClick={browseAll} className="amz-footer__link">New arrivals</button></li>
+              <li><button onClick={() => { setActiveTab('shop'); setSelectedCategory('Fashion'); }} className="amz-footer__link">Fashion</button></li>
+              <li><button onClick={() => { setActiveTab('shop'); setSelectedCategory('Beauty'); }} className="amz-footer__link">Beauty</button></li>
+              <li><button onClick={() => { setActiveTab('shop'); setSelectedCategory('Accessories'); }} className="amz-footer__link">Accessories</button></li>
             </ul>
           </div>
 
           <div>
-            <h4 className="amz-footer__col-title">Connect with Us</h4>
+            <h4 className="amz-footer__col-title">Need help?</h4>
             <ul className="amz-footer__links">
-              <li><a href="#facebook" className="amz-footer__link">Facebook</a></li>
-              <li><a href="#twitter" className="amz-footer__link">Twitter / X</a></li>
-              <li><a href="#instagram" className="amz-footer__link">Instagram</a></li>
+              <li><button onClick={() => setActiveTab('orders')} className="amz-footer__link">Track order</button></li>
+              <li><a href="#returns" className="amz-footer__link">Returns & exchanges</a></li>
+              <li><a href="#help" className="amz-footer__link">Help centre</a></li>
+              <li><a href="#contact" className="amz-footer__link">Contact us</a></li>
             </ul>
           </div>
 
           <div>
-            <h4 className="amz-footer__col-title">Make Money with Us</h4>
+            <h4 className="amz-footer__col-title">Partner with us</h4>
             <ul className="amz-footer__links">
               <li><a href="/login/seller" className="amz-footer__link">Sell on DripNow</a></li>
               <li><a href="/login/delivery" className="amz-footer__link">Become a Delivery Partner</a></li>
-              <li><a href="#advertise" className="amz-footer__link">Advertise Your Products</a></li>
-              <li><a href="#affiliate" className="amz-footer__link">Become an Affiliate</a></li>
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="amz-footer__col-title">Let Us Help You</h4>
-            <ul className="amz-footer__links">
-              <li><a href="#account" className="amz-footer__link">Your Account</a></li>
-              <li><a href="#returns" className="amz-footer__link">Returns Centre</a></li>
-              <li><a href="#protection" className="amz-footer__link">100% Purchase Protection</a></li>
-              <li><a href="#help" className="amz-footer__link">Help & Support</a></li>
+              <li><a href="#about" className="amz-footer__link">About DripNow</a></li>
             </ul>
           </div>
         </div>
 
         <div className="amz-footer__bottom">
-          © {new Date().getFullYear()} DripNow Inc. — Inspired by Amazon & Flipkart Shopping Experience. All rights reserved.
+          <span>© {new Date().getFullYear()} DripNow. All rights reserved.</span><span>Privacy · Terms · Shipping policy</span>
         </div>
       </footer>
     </div>

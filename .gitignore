@@ -50,3 +50,4 @@ Thumbs.db
 # Browser verification output
 backend/tests/artifacts/
 mysql_data/
+.publish/

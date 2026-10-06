@@ -9,7 +9,7 @@ export async function getSellerOrders(req: Request, res: Response, next: NextFun
     const userId = req.user!.id;
     const seller = await sellerService.getSellerProfileByUserId(userId);
     if (!seller || seller.status !== 'approved') {
-      sendNotFound(res, 'Seller profile not found');
+      sendSuccess(res, []);
       return;
     }
 

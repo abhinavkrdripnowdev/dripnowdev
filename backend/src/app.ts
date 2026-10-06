@@ -105,7 +105,7 @@ async function startServer() {
   let maintenanceRunning = false;
   const timer = setInterval(() => { if (maintenanceRunning) return; maintenanceRunning = true; maintenance().catch(error => console.error('Maintenance failed', error)).finally(() => { maintenanceRunning = false; }); }, 60000);
   timer.unref();
-  const server = app.listen(PORT, () => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n🚀 DripNow API running on http://localhost:${PORT}`);
     console.log(`   Environment: ${env.NODE_ENV}`);
     console.log(`   Health check: http://localhost:${PORT}/health`);

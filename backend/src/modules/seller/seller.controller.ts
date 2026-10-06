@@ -17,7 +17,7 @@ export async function getMyProfile(req: Request, res: Response, next: NextFuncti
     const userId = req.user!.id;
     const profile = await sellerService.getSellerProfileByUserId(userId);
     if (!profile) {
-      sendNotFound(res, 'Seller profile not found for this account');
+      sendSuccess(res, null);
       return;
     }
     const documents = await sellerService.getSellerDocuments(profile.id);
@@ -68,10 +68,9 @@ export async function addDocument(req: Request, res: Response, next: NextFunctio
 export async function updateLocation(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const userId = req.user!.id;
-    const profile = await sellerService.getSellerProfileByUserId(userId);
+    let profile = await sellerService.getSellerProfileByUserId(userId);
     if (!profile) {
-      sendNotFound(res, 'Seller profile not found');
-      return;
+      profile = await sellerService.createOrUpdateSellerProfile(userId, { business_name: 'Pending Seller' });
     }
 
     const location = await sellerService.addOrUpdateSellerLocation(profile.id, req.body);
@@ -86,7 +85,16 @@ export async function getDashboardOverview(req: Request, res: Response, next: Ne
     const userId = req.user!.id;
     const profile = await sellerService.getSellerProfileByUserId(userId);
     if (!profile) {
-      sendNotFound(res, 'Seller profile not found');
+      sendSuccess(res, {
+        seller_id: '',
+        business_name: '',
+        status: 'draft',
+        total_products: 0,
+        low_stock_products_count: 0,
+        pending_orders_count: 0,
+        total_orders_count: 0,
+        total_earnings: 0,
+      });
       return;
     }
 

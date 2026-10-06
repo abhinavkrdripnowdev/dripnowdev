@@ -14,7 +14,8 @@
     "test": "npm run build && node --test tests/*.test.cjs",
     "db:create": "node scripts/setup-mysql.cjs",
     "admin:bootstrap": "npm run build && node scripts/bootstrap-admin.cjs",
-    "jobs": "npm run build && node dist/jobs/maintenance.js"
+    "jobs": "npm run build && node dist/jobs/maintenance.js",
+    "generate:postman": "node generate_postman.js"
   },
   "keywords": [],
   "author": "DripNow Dev",

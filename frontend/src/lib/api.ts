@@ -1,5 +1,11 @@
 import { useAuthStore } from '@/store/auth.store';
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
+import { logger } from './logger';
+
+export interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
+  _startTime?: number;
+  _retry?: boolean;
+}
 
 const api = axios.create({
   baseURL: '/api',
@@ -8,9 +14,13 @@ const api = axios.create({
   timeout: 10000,
 });
 
-// ─── Request Interceptor: Attach Access Token ─────────────────────────────────
-api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  if (config.url && !config.url.startsWith('/auth/') && !config.url.startsWith('/v1/')) config.url = '/v1' + config.url;
+// ─── Request Interceptor: Attach Access Token & Track Start Time ─────────────
+api.interceptors.request.use((config: CustomAxiosRequestConfig) => {
+  config._startTime = Date.now();
+
+  if (config.url && !config.url.startsWith('/auth/') && !config.url.startsWith('/v1/')) {
+    config.url = '/v1' + config.url;
+  }
   const token = localStorage.getItem('accessToken');
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -18,7 +28,7 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config;
 });
 
-// ─── Response Interceptor: Auto-Refresh on 401 ────────────────────────────────
+// ─── Response Interceptor: Datadog Logging & Auto-Refresh on 401 ──────────────
 let isRefreshing = false;
 let failedQueue: Array<{
   resolve: (value: string) => void;
@@ -34,11 +44,34 @@ function processQueue(error: unknown, token: string | null = null) {
 }
 
 api.interceptors.response.use(
-  (response) => response,
-  async (error: AxiosError) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+  (response) => {
+    const config = response.config as CustomAxiosRequestConfig;
+    const durationMs = config._startTime ? Date.now() - config._startTime : 0;
+    const method = config.method || 'GET';
+    const url = config.url || '';
 
-    if (error.response?.status === 401 && originalRequest && !originalRequest.url?.startsWith('/auth/') && !originalRequest._retry && localStorage.getItem('accessToken')) {
+    // Log successful API call to Datadog
+    logger.logApiRequest(method, url, response.status, durationMs, {
+      statusText: response.statusText,
+      dataSize: response.data ? JSON.stringify(response.data).length : 0,
+    });
+
+    return response;
+  },
+  async (error: AxiosError) => {
+    const originalRequest = error.config as CustomAxiosRequestConfig;
+    const durationMs = originalRequest?._startTime ? Date.now() - originalRequest._startTime : 0;
+    const method = originalRequest?.method || 'UNKNOWN';
+    const url = originalRequest?.url || '';
+    const status = error.response?.status || 0;
+
+    // Log API failure to Datadog
+    logger.logApiRequest(method, url, status, durationMs, {
+      errorMessage: error.message,
+      responseData: error.response?.data,
+    });
+
+    if (status === 401 && originalRequest && !originalRequest.url?.startsWith('/auth/') && !originalRequest._retry && localStorage.getItem('accessToken')) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
