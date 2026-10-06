@@ -41,8 +41,8 @@ export const AdminDashboard: React.FC = () => {
       await adminApi.approveSeller(sellerId);
       setSellers(prev => prev.filter(s => s.id !== sellerId));
       setAllSellers(prev => prev.map(s => s.id === sellerId ? { ...s, status: 'approved' } : s));
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to approve seller');
+    } catch (err: any) {
+      alert(err.response?.data?.message || err.message || 'Failed to approve seller');
     } finally {
       setActionLoading(null);
     }
@@ -56,8 +56,8 @@ export const AdminDashboard: React.FC = () => {
       await adminApi.rejectSeller(sellerId, reason);
       setSellers(prev => prev.filter(s => s.id !== sellerId));
       setAllSellers(prev => prev.map(s => s.id === sellerId ? { ...s, status: 'rejected' } : s));
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to reject seller');
+    } catch (err: any) {
+      alert(err.response?.data?.message || err.message || 'Failed to reject seller');
     } finally {
       setActionLoading(null);
     }
@@ -70,8 +70,8 @@ export const AdminDashboard: React.FC = () => {
     try {
       await adminApi.suspendSeller(sellerId, reason);
       setAllSellers(prev => prev.map(s => s.id === sellerId ? { ...s, status: 'suspended' } : s));
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to suspend seller');
+    } catch (err: any) {
+      alert(err.response?.data?.message || err.message || 'Failed to suspend seller');
     } finally {
       setActionLoading(null);
     }
