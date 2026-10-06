@@ -23,7 +23,7 @@ export const createSellerSchema = z.object({
     .array(
       z.object({
         document_type: z.enum(['gst_certificate', 'pan_card', 'fssai', 'cancelled_cheque', 'other']),
-        document_url: z.string().url('Document URL must be valid'),
+        document_url: z.string().min(1, 'Document file or URL is required'),
       })
     )
     .optional(),
@@ -41,7 +41,7 @@ export const updateSellerSchema = z.object({
 
 export const addDocumentSchema = z.object({
   document_type: z.enum(['gst_certificate', 'pan_card', 'fssai', 'cancelled_cheque', 'other']),
-  document_url: z.string().url('Document URL must be valid'),
+  document_url: z.string().min(1, 'Document file or URL is required'),
 });
 
 export const addLocationSchema = z.object({
