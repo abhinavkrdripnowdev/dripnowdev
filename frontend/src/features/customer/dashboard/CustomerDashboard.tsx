@@ -6,6 +6,9 @@ import { CustomerAddressManager } from './CustomerAddressManager';
 import { cartApi, type CartResponse } from '../api/cart.api';
 import { orderApi, type Order } from '../api/order.api';
 import api from '@/lib/api';
+import { useNavigate, useLocation, useParams, useSearchParams } from 'react-router-dom';
+import { CATALOG, FOR_YOU, categoryPath, findNode, matchesCategory } from '../catalog';
+import { StoresMap } from './StoresMap';
 import './CustomerDashboard.css';
 import { CustomerAccount } from './CustomerAccount';
 
@@ -13,7 +16,7 @@ interface Product {
   id: string;
   name: string;
   description?: string;
-  category: { name: string } | string;
+  category: { id?: number; name: string; slug?: string; parent_id?: number | null } | string;
   images?: { image_url: string }[];
   variants?: { id: string; size?: string; color?: string; price_override?: number; inventory?: { quantity: number } }[];
   base_price: number;
@@ -21,32 +24,52 @@ interface Product {
   seller_id: string;
 }
 
-const styleCategories = [
-  { label: 'For you', icon: '✦', value: 'All', tone: 'violet' },
-  { label: 'Women', icon: '◒', value: 'Fashion', tone: 'rose' },
-  { label: 'Men', icon: '◐', value: 'Fashion', tone: 'blue' },
-  { label: 'Ethnic', icon: '❋', value: 'Fashion', tone: 'saffron' },
-  { label: 'Beauty', icon: '✿', value: 'Beauty', tone: 'pink' },
-  { label: 'Accessories', icon: '◇', value: 'Accessories', tone: 'mint' },
-  { label: 'Footwear', icon: '↗', value: 'Footwear', tone: 'sky' },
-  { label: 'Home', icon: '⌂', value: 'Home & Furniture', tone: 'peach' },
-  { label: 'Jewellery', icon: '♢', value: 'Jewellery', tone: 'gold' },
-  { label: 'Gifting', icon: '⌑', value: 'Gifting', tone: 'lilac' },
-];
 
+const ICON_PATHS: Record<string, React.ReactNode> = {
+  search: <><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></>,
+  grid: <><rect x="4" y="4" width="6" height="6" rx="1" /><rect x="14" y="4" width="6" height="6" rx="1" /><rect x="4" y="14" width="6" height="6" rx="1" /><rect x="14" y="14" width="6" height="6" rx="1" /></>,
+  compass: <><circle cx="12" cy="12" r="9" /><path d="m15.5 8.5-2 5-5 2 2-5z" /></>,
+  heart: <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" />,
+  bag: <><path d="M5 8h14l-1 12H6z" /><path d="M9 8V6a3 3 0 0 1 6 0v2" /></>,
+  user: <><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 3.5-6 8-6s8 2 8 6" /></>,
+  pin: <><path d="M12 21s7-6.2 7-11.5a7 7 0 1 0-14 0C5 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></>,
+  bolt: <path d="M13 3 5 14h6l-1 7 8-11h-6z" />,
+  swap: <><path d="M4 8h14l-3-3M20 16H6l3 3" /></>,
+  refund: <><path d="M4 12a8 8 0 1 0 3-6.2" /><path d="M4 4v4h4" /><path d="M12 8v5l3 2" /></>,
+  lock: <><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></>,
+  check: <><path d="M12 3 4 6v6c0 4.5 3.4 8 8 9 4.6-1 8-4.5 8-9V6z" /><path d="m8.5 12 2.5 2.5 4.5-5" /></>,
+};
+
+const Icon: React.FC<{ name: keyof typeof ICON_PATHS | string }> = ({ name }) => (
+  <svg className="sl-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{ICON_PATHS[name]}</svg>
+);
+
+const categorySlug = (product: Product) => typeof product.category === 'string' ? product.category.toLowerCase() : (product.category?.slug ?? '').toLowerCase();
 const categoryName = (product: Product) => typeof product.category === 'string' ? product.category : product.category?.name ?? '';
 
 export const CustomerDashboard: React.FC = () => {
   const { user } = useAuthStore();
 
-  const [activeTab, setActiveTab] = useState<'shop' | 'orders' | 'wishlist' | 'addresses' | 'profile'>('shop');
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const params = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  type Tab = 'shop' | 'orders' | 'wishlist' | 'addresses' | 'profile' | 'stores';
+  const TAB_PATHS: Record<Tab, string> = { shop: '/', orders: '/orders', wishlist: '/wishlist', addresses: '/addresses', profile: '/profile', stores: '/stores' };
+  const activeTab: Tab = (Object.keys(TAB_PATHS) as Tab[]).find((t) => t !== 'shop' && TAB_PATHS[t] === pathname) ?? 'shop';
+  const setActiveTab = (tab: Tab) => { navigate(TAB_PATHS[tab]); window.scrollTo({ top: 0 }); };
+  const catSlug = params.slug ?? '';
+  const subSlug = params.sub ?? '';
+  const sellerFilter = searchParams.get('seller') ?? '';
+  const activeNode = findNode(catSlug);
+  const goCategory = (slug = '', sub = '') => { navigate(categoryPath(slug, sub)); setMegaOpen(false); window.scrollTo({ top: 0 }); };
+  const [megaOpen, setMegaOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [sizeFilter, setSizeFilter] = useState('');
   const [colorFilter, setColorFilter] = useState('');
   const [sort, setSort] = useState('newest');
   const guestMerge = React.useRef(false);
-  const [selectedCategory, setSelectedCategory] = useState('All');
   const [isCartOpen, setIsCartOpen] = useState(false);
   useEffect(() => { if (isCartOpen && user) void fetchAddresses(); }, [isCartOpen]);
   const [cart, setCart] = useState<CartResponse | null>(null);
@@ -174,7 +197,7 @@ export const CustomerDashboard: React.FC = () => {
   const cartSubtotal = cart?.total_amount || 0;
 
   const filteredProducts = products.filter((p) => {
-    const matchesCat = selectedCategory === 'All' || (typeof p.category === 'string' ? p.category : p.category?.name ?? '').toLowerCase() === selectedCategory.toLowerCase();
+    const matchesCat = matchesCategory(categorySlug(p), catSlug, subSlug) && (!sellerFilter || p.seller_id === sellerFilter);
     const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCat && matchesSearch && (!maxPrice || Number(p.base_price) <= Number(maxPrice)) && (!sizeFilter || p.variants?.some(v => v.size?.toLowerCase().includes(sizeFilter.toLowerCase()))) && (!colorFilter || p.variants?.some(v => v.color?.toLowerCase().includes(colorFilter.toLowerCase())));
   });
@@ -182,9 +205,16 @@ export const CustomerDashboard: React.FC = () => {
   if (sort === 'price_asc') filteredProducts.sort((a,b) => Number(a.base_price) - Number(b.base_price));
   if (sort === 'price_desc') filteredProducts.sort((a,b) => Number(b.base_price) - Number(a.base_price));
   const wishlistCount = wishlist.length;
+  const categoryImage = (slug: string) => products.find((p) => matchesCategory(categorySlug(p), slug))?.images?.[0]?.image_url;
+  const heroImages = products.map((p) => p.images?.[0]?.image_url).filter((u): u is string => !!u).slice(0, 3);
+  const dealTiles = CATALOG.map((node) => {
+    const inNode = products.filter((p) => matchesCategory(categorySlug(p), node.slug));
+    if (!inNode.length) return null;
+    const max = Math.max(...inNode.map((p) => Number(p.base_price)));
+    return { slug: node.slug, name: node.label, image: inNode[0].images?.[0]?.image_url, label: `Under ₹${(Math.ceil(max / 100) * 100 - 1).toLocaleString('en-IN')}` };
+  }).filter((t): t is NonNullable<typeof t> => !!t).slice(0, 6);
   const browseAll = () => {
-    setActiveTab('shop');
-    setSelectedCategory('All');
+    navigate('/');
     requestAnimationFrame(() => document.querySelector('.product-grid')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   };
   return (
@@ -194,80 +224,127 @@ export const CustomerDashboard: React.FC = () => {
         <span>⚡ Express delivery from nearby sellers</span>
         <span className="customer-announcement__desktop">New here? Enjoy a smoother way to shop local.</span>
       </div>
-      <header className="amz-header">
-        <div className="amz-header__top">
-          <button className="amz-brand" onClick={() => setActiveTab('shop')} aria-label="DripNow home">
-            <span className="amz-brand__mark">D</span>
-            <span className="amz-brand__logo">dripnow<span className="amz-brand__dot">.</span></span>
+      <header className="sl-header">
+        <div className="sl-header__top">
+          <button className="sl-brand" onClick={() => navigate('/')} aria-label="DripNow home">
+            <span className="sl-brand__badge"><b>60</b><small>min</small></span>
+            <span className="sl-brand__text">
+              <strong>dripnow<i>.</i></strong>
+              <small onClick={(e) => { e.stopPropagation(); if (user) setActiveTab('addresses'); else window.location.href = '/login'; }}>
+                Current: <u>{addresses.find((a) => a.is_default)?.city ?? addresses[0]?.city ?? 'Add Address'}</u> ›
+              </small>
+            </span>
           </button>
-          <div className="amz-search">
-            <span className="amz-search__icon">⌕</span>
-            <input
-              type="text"
-              className="amz-search__input"
-              placeholder="Search styles, products or brands"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            {searchQuery && <button className="amz-search__clear" onClick={() => setSearchQuery('')} aria-label="Clear search">×</button>}
+          <div className="sl-search">
+            <Icon name="search" />
+            <input type="text" className="sl-search__input" placeholder="Search for styles, brands & more" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+            {searchQuery && <button className="sl-search__clear" onClick={() => setSearchQuery('')} aria-label="Clear search">×</button>}
           </div>
-          <div className="amz-nav-actions">
-            <button className="amz-nav-item" onClick={() => { setActiveTab('shop'); requestAnimationFrame(() => document.querySelector('.style-category-rail')?.scrollIntoView({ behavior: 'smooth' })); }}><span>▦</span><b>Categories</b></button>
-            <button className="amz-nav-item" onClick={browseAll}><span>◎</span><b>Discover</b></button>
-            <button className="amz-nav-item" onClick={() => setActiveTab('wishlist')}><span>♡</span><b>Wishlist</b>{wishlistCount > 0 && <em>{wishlistCount}</em>}</button>
-            <button className="amz-cart-btn" onClick={() => setIsCartOpen(true)} id="open-cart-btn">
-              <span className="amz-cart-icon">⌑</span>
-              <span className="amz-cart-badge">{cartCount}</span>
-              <b>Cart</b>
-            </button>
-            {user ? <button className="amz-nav-item" onClick={() => setActiveTab('profile')}><span>♙</span><b>{user.full_name?.split(' ')[0] || 'Account'}</b></button> : <a className="amz-nav-item" href="/login"><span>♙</span><b>Sign in</b></a>}
+          <div className="sl-actions">
+            <button className="sl-action sl-action--hide-sm" onClick={() => setMegaOpen((v) => !v)} aria-expanded={megaOpen}><Icon name="grid" /><b>Categories</b></button>
+            <button className={`sl-action ${activeTab === 'stores' ? 'is-active' : ''}`} onClick={() => setActiveTab('stores')}><Icon name="pin" /><b>Stores</b></button>
+            <button className="sl-action sl-action--hide-sm" onClick={browseAll}><Icon name="compass" /><b>Discover</b></button>
+            <button className="sl-action" onClick={() => setActiveTab('wishlist')}><Icon name="heart" /><b>Wishlist</b>{wishlistCount > 0 && <em>{wishlistCount}</em>}</button>
+            <button className="sl-action" onClick={() => setIsCartOpen(true)} id="open-cart-btn"><Icon name="bag" /><b>Cart</b>{cartCount > 0 && <em>{cartCount}</em>}</button>
+            {user
+              ? <button className="sl-action" onClick={() => setActiveTab('profile')}><Icon name="user" /><b>{user.full_name?.split(' ')[0] || 'Account'}</b></button>
+              : <a className="sl-action" href="/login"><Icon name="user" /><b>Sign in</b></a>}
           </div>
         </div>
-        <nav className="amz-subnav">
-          <button className={activeTab === 'shop' ? 'is-active' : ''} onClick={() => setActiveTab('shop')}>Home</button>
-          <button onClick={() => { setActiveTab('shop'); setSelectedCategory('Fashion'); }}>Women</button>
-          <button onClick={() => { setActiveTab('shop'); setSelectedCategory('Fashion'); }}>Men</button>
-          <button onClick={() => { setActiveTab('shop'); setSelectedCategory('Beauty'); }}>Beauty</button>
-          <button onClick={() => { setActiveTab('shop'); setSelectedCategory('Accessories'); }}>Accessories</button>
-          <button onClick={() => { setActiveTab('shop'); setSelectedCategory('Footwear'); }}>Footwear</button>
-          <button className="amz-subnav__offer" onClick={browseAll}>The drop edit</button>
+        <nav className="sl-cats" aria-label="Shop by category">
+          {[FOR_YOU, ...CATALOG].map((category) => {
+            const img = categoryImage(category.slug);
+            return (
+              <button key={category.label} className={`sl-cat ${activeTab === 'shop' && catSlug === category.slug && !sellerFilter ? 'is-active' : ''}`} onClick={() => goCategory(category.slug)}>
+                <span className={`sl-cat__art sl-cat__art--${category.tone}`}>{img ? <img src={img} alt="" loading="lazy" /> : category.icon}</span>
+                <span className="sl-cat__label">{category.label}</span>
+              </button>
+            );
+          })}
         </nav>
+        {megaOpen && (
+          <div className="sl-mega" onMouseLeave={() => setMegaOpen(false)}>
+            <div className="sl-mega__grid">
+              {CATALOG.map((node) => (
+                <div key={node.slug} className="sl-mega__col">
+                  <button className="sl-mega__title" onClick={() => goCategory(node.slug)}>{node.label}</button>
+                  {node.subs.map((sub) => <button key={sub.slug} className="sl-mega__link" onClick={() => goCategory(node.slug, sub.slug)}>{sub.label}</button>)}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </header>
       <main className="customer-main-content">
         {activeTab === 'shop' && (
           <>
-            <section className="style-category-rail" aria-label="Shop by category">
-              {styleCategories.map((category) => <button key={category.label} className={`style-category ${selectedCategory === category.value ? 'is-active' : ''}`} onClick={() => setSelectedCategory(category.value)}>
-                <span className={`style-category__art style-category__art--${category.tone}`}>{category.icon}</span>
-                <span>{category.label}</span>
-              </button>)}
+            {activeNode && (
+              <section className="cat-hero">
+                <nav className="cat-crumbs" aria-label="Breadcrumb">
+                  <button onClick={() => navigate('/')}>Home</button><span>/</span>
+                  <button onClick={() => goCategory(activeNode.slug)} className={!subSlug ? 'is-current' : ''}>{activeNode.label}</button>
+                  {subSlug && <><span>/</span><b>{activeNode.subs.find((x) => x.slug === subSlug)?.label ?? subSlug}</b></>}
+                </nav>
+                <h1>{subSlug ? activeNode.subs.find((x) => x.slug === subSlug)?.label : activeNode.label}</h1>
+                <div className="cat-chips">
+                  <button className={!subSlug ? 'is-active' : ''} onClick={() => goCategory(activeNode.slug)}>All {activeNode.label}</button>
+                  {activeNode.subs.map((sub) => <button key={sub.slug} className={subSlug === sub.slug ? 'is-active' : ''} onClick={() => goCategory(activeNode.slug, sub.slug)}>{sub.label}</button>)}
+                </div>
+              </section>
+            )}
+            {!catSlug && !sellerFilter && (<>
+            <section className="sl-promo-bar" aria-label="Offers">
+              <span><b>FREE DELIVERY</b> on your first order</span>
+              <span className="sl-promo-bar__sep" />
+              <span><b>TRY &amp; BUY</b> at your doorstep</span>
             </section>
 
-            <section className="fk-hero-banner">
-              <div className="fk-hero-banner__content">
-                <span className="fk-hero-badge">THE NOW EDIT · 2026</span>
-                <h1 className="fk-hero-title">Fresh fits.<br/><i>At your door.</i></h1>
-                <p className="fk-hero-sub">Curated drops from approved local sellers, delivered while the look is still on your mind.</p>
-                <div className="fk-hero-actions"><button className="fk-hero-btn" onClick={browseAll}>Shop the drop <span>↗</span></button><button className="fk-hero-link" onClick={() => setActiveTab('orders')}>Track an order</button></div>
+            <section className="sl-hero">
+              <div className="sl-marquee sl-hero__frame">
+                <div className="sl-hero__content">
+                  <span className="sl-hero__badge">THE NOW EDIT · {new Date().getFullYear()}</span>
+                  <h1>Get your fit<br /><em>delivered in 60 mins</em></h1>
+                  <p>Curated drops from approved local sellers, at your door while the look is still on your mind.</p>
+                  <div className="sl-hero__actions"><button className="sl-btn sl-btn--gold" onClick={browseAll}>Shop the drop <span>→</span></button><button className="sl-btn sl-btn--ghost" onClick={() => setActiveTab('orders')}>Track an order</button></div>
+                </div>
+                <div className="sl-hero__visual" aria-hidden="true">
+                  {heroImages.map((src, i) => <img key={src} src={src} alt="" className={`sl-hero__img sl-hero__img--${i}`} />)}
+                  {heroImages.length === 0 && <span className="sl-hero__word">DRIP</span>}
+                  <div className="sl-hero__pill"><b>Under 60 min</b><small>in supported zones</small></div>
+                </div>
               </div>
-              <div className="fk-hero-banner__visual" aria-hidden="true"><div className="hero-orbit hero-orbit--one"/><div className="hero-orbit hero-orbit--two"/><span className="hero-figure">DRIP</span><div className="hero-delivery-pill"><b>Under 60 min</b><small>in supported zones</small></div></div>
             </section>
 
-            <section className="customer-perks" aria-label="Shopping benefits">
-              <div><span>⚡</span><p><b>Fast local delivery</b><small>From nearby approved sellers</small></p></div>
-              <div><span>◉</span><p><b>Verified products</b><small>Moderated marketplace catalogue</small></p></div>
-              <div><span>↺</span><p><b>Simple returns</b><small>Clear return and exchange flow</small></p></div>
-              <div><span>✓</span><p><b>Secure checkout</b><small>COD and verified online payments</small></p></div>
+            <section className="sl-trust" aria-label="Shopping benefits">
+              <div><Icon name="bolt" /><span><b>60 Min</b> Delivery</span></div>
+              <div><Icon name="swap" /><span><b>Try</b> &amp; Buy</span></div>
+              <div><Icon name="refund" /><span><b>Instant</b> Refund</span></div>
             </section>
 
+            {dealTiles.length > 0 && (
+              <section className="sl-deals" aria-label="Deals of the day">
+                <h2 className="sl-deals__title"><span>Drip</span> of the <span>Day</span></h2>
+                <div className="sl-deals__row">
+                  {dealTiles.map((tile) => (
+                    <button key={tile.slug} className="sl-deal sl-marquee" onClick={() => goCategory(tile.slug)}>
+                      <span className="sl-deal__head">{tile.name}</span>
+                      <span className="sl-deal__img"><img src={tile.image || '/favicon.svg'} alt={tile.name} loading="lazy" /></span>
+                      <span className="sl-deal__foot">{tile.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            </>)}
             <section className="deal-section">
               <div className="deal-header">
                 <div className="deal-header__left">
-                  <span className="section-kicker">CURATED FOR YOU</span>
-                  <h2 className="deal-title">Trending right now</h2>
-                  <p>Fresh finds, ready when you are.</p>
+                  <span className="section-kicker">{activeNode ? 'SHOP BY CATEGORY' : sellerFilter ? 'LOCAL STORE' : 'CURATED FOR YOU'}</span>
+                  <h2 className="deal-title">{activeNode ? (subSlug ? activeNode.subs.find((x) => x.slug === subSlug)?.label : `All ${activeNode.label}`) : sellerFilter ? 'From this store' : 'Trending right now'}</h2>
+                  <p>{sellerFilter ? <>Showing one seller's catalogue. <button className="link-btn" onClick={() => { searchParams.delete('seller'); setSearchParams(searchParams); }}>Show all stores</button></> : 'Fresh finds, ready when you are.'}</p>
                 </div>
-                <button className="deal-view-all" onClick={() => { setSelectedCategory('All'); setSearchQuery(''); }}>View all <span>({filteredProducts.length})</span> ↗</button>
+                <button className="deal-view-all" onClick={() => { navigate('/'); setSearchQuery(''); }}>View all <span>({filteredProducts.length})</span> ↗</button>
               </div>
               <div className="product-filters">
                 <label><span>Max price</span><div className="filter-input"><b>₹</b><input type="number" min="0" placeholder="Any" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} /></div></label>
@@ -295,13 +372,15 @@ export const CustomerDashboard: React.FC = () => {
                     </button>
                   </div>
                 ))}
-                {filteredProducts.length === 0 && <div className="product-empty"><span>⌕</span><h3>No styles found</h3><p>Try a broader search or clear your filters.</p><button onClick={() => { setSearchQuery(''); setSelectedCategory('All'); setMaxPrice(''); setSizeFilter(''); setColorFilter(''); }}>Reset shopping filters</button></div>}
+                {filteredProducts.length === 0 && <div className="product-empty"><span>⌕</span><h3>No styles found</h3><p>Try a broader search or clear your filters.</p><button onClick={() => { setSearchQuery(''); navigate('/'); setMaxPrice(''); setSizeFilter(''); setColorFilter(''); }}>Reset shopping filters</button></div>}
               </div>
             </section>
 
             <section className="editorial-banner"><span>THE DRIPNOW PROMISE</span><h2>Local choice.<br/>Main-character speed.</h2><p>Discover standout products from sellers in your city and see the complete price before you place the order.</p><button onClick={browseAll}>Find your next favourite ↗</button></section>
           </>
         )}
+
+        {activeTab === 'stores' && <StoresMap onShopStore={(store) => { navigate(`/?seller=${store.id}`); window.scrollTo({ top: 0 }); }} />}
 
         {/* Sub-view: My Orders */}
         {activeTab === 'orders' && (
@@ -490,56 +569,65 @@ export const CustomerDashboard: React.FC = () => {
 
       <nav className="customer-mobile-nav" aria-label="Mobile navigation">
         <button className={activeTab === 'shop' ? 'is-active' : ''} onClick={() => setActiveTab('shop')}><span>⌂</span>Home</button>
-        <button onClick={() => { setActiveTab('shop'); requestAnimationFrame(() => document.querySelector('.style-category-rail')?.scrollIntoView({ behavior: 'smooth' })); }}><span>▦</span>Categories</button>
-        <button onClick={browseAll}><span>◎</span>Discover</button>
+        <button onClick={() => { setMegaOpen((v) => !v); window.scrollTo({ top: 0 }); }}><span>▦</span>Categories</button>
+        <button className={activeTab === 'stores' ? 'is-active' : ''} onClick={() => setActiveTab('stores')}><span>⌖</span>Stores</button>
         <button className={activeTab === 'wishlist' ? 'is-active' : ''} onClick={() => setActiveTab('wishlist')}><span>♡</span>Wishlist</button>
         <button onClick={() => setIsCartOpen(true)}><span>⌑</span>Bag{cartCount > 0 && <em>{cartCount}</em>}</button>
       </nav>
 
-      <footer className="amz-footer">
-        <div className="amz-footer__back-top" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-          Back to top ↑
+      <footer className="sl-footer">
+        <div className="sl-footer__trust">
+          <div><Icon name="lock" /><span>Secure Payments</span></div>
+          <div><Icon name="check" /><span>Genuine Product</span></div>
+          <div><Icon name="swap" /><span>Try &amp; Buy</span></div>
+          <div><Icon name="refund" /><span>7 Day Return</span></div>
         </div>
-
-        <div className="amz-footer__content">
-          <div className="amz-footer__brand">
-            <span className="amz-brand__logo">dripnow<span className="amz-brand__dot">.</span></span>
+        <div className="sl-footer__content">
+          <div className="sl-footer__brand">
+            <span className="sl-footer__logo">dripnow<i>.</i></span>
             <p>Great local finds, delivered at the speed of now.</p>
+            <form className="sl-newsletter" onSubmit={(e) => { e.preventDefault(); setMessage('Thanks for subscribing!'); (e.target as HTMLFormElement).reset(); }}>
+              <input type="email" required placeholder="Subscribe to our newsletter" aria-label="Email address" />
+              <button type="submit">SUBSCRIBE</button>
+            </form>
             <div className="footer-socials"><a href="#instagram">ig</a><a href="#facebook">f</a><a href="#twitter">x</a></div>
           </div>
           <div>
-            <h4 className="amz-footer__col-title">Shop</h4>
-            <ul className="amz-footer__links">
-              <li><button onClick={browseAll} className="amz-footer__link">New arrivals</button></li>
-              <li><button onClick={() => { setActiveTab('shop'); setSelectedCategory('Fashion'); }} className="amz-footer__link">Fashion</button></li>
-              <li><button onClick={() => { setActiveTab('shop'); setSelectedCategory('Beauty'); }} className="amz-footer__link">Beauty</button></li>
-              <li><button onClick={() => { setActiveTab('shop'); setSelectedCategory('Accessories'); }} className="amz-footer__link">Accessories</button></li>
+            <h4 className="sl-footer__title">Help</h4>
+            <ul className="sl-footer__links">
+              <li><a href="#contact">Contact us</a></li>
+              <li><a href="#faq">FAQ&apos;s</a></li>
+              <li><button onClick={() => setActiveTab('orders')}>Track order</button></li>
+              <li><button onClick={() => setActiveTab('stores')}>Find a store</button></li>
+              <li><a href="/login/delivery">Careers</a></li>
             </ul>
           </div>
-
           <div>
-            <h4 className="amz-footer__col-title">Need help?</h4>
-            <ul className="amz-footer__links">
-              <li><button onClick={() => setActiveTab('orders')} className="amz-footer__link">Track order</button></li>
-              <li><a href="#returns" className="amz-footer__link">Returns & exchanges</a></li>
-              <li><a href="#help" className="amz-footer__link">Help centre</a></li>
-              <li><a href="#contact" className="amz-footer__link">Contact us</a></li>
+            <h4 className="sl-footer__title">Top categories</h4>
+            <ul className="sl-footer__links">
+              {CATALOG.slice(0, 7).map((node) => <li key={node.slug}><button onClick={() => goCategory(node.slug)}>{node.label}</button></li>)}
             </ul>
           </div>
-
           <div>
-            <h4 className="amz-footer__col-title">Partner with us</h4>
-            <ul className="amz-footer__links">
-              <li><a href="/login/seller" className="amz-footer__link">Sell on DripNow</a></li>
-              <li><a href="/login/delivery" className="amz-footer__link">Become a Delivery Partner</a></li>
-              <li><a href="#about" className="amz-footer__link">About DripNow</a></li>
+            <h4 className="sl-footer__title">Partner with us</h4>
+            <ul className="sl-footer__links">
+              <li><a href="/login/seller">Sell on DripNow</a></li>
+              <li><a href="/login/delivery">Become a delivery partner</a></li>
+              <li><a href="#about">About DripNow</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="sl-footer__title">Policies</h4>
+            <ul className="sl-footer__links">
+              <li><a href="#terms">Terms and Conditions</a></li>
+              <li><a href="#privacy">Privacy Policy</a></li>
+              <li><a href="#refund">Refund Policy</a></li>
+              <li><a href="#returns">Return &amp; Exchange</a></li>
+              <li><a href="#shipping">Shipping Policy</a></li>
             </ul>
           </div>
         </div>
-
-        <div className="amz-footer__bottom">
-          <span>© {new Date().getFullYear()} DripNow. All rights reserved.</span><span>Privacy · Terms · Shipping policy</span>
-        </div>
+        <div className="sl-footer__bottom"><span>© {new Date().getFullYear()} DripNow. All rights reserved.</span><button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>Back to top ↑</button></div>
       </footer>
     </div>
   );

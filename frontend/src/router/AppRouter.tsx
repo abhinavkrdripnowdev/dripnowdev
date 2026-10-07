@@ -58,6 +58,13 @@ export const AppRouter: React.FC = () => {
         <Routes>
           {/* ── Root redirect ─────────────────────────────────── */}
           <Route path="/" element={<CustomerDashboard />} />
+          <Route path="/c/:slug" element={<CustomerDashboard />} />
+          <Route path="/c/:slug/:sub" element={<CustomerDashboard />} />
+          <Route path="/stores" element={<CustomerDashboard />} />
+          <Route path="/orders" element={<CustomerDashboard />} />
+          <Route path="/wishlist" element={<CustomerDashboard />} />
+          <Route path="/profile" element={<CustomerDashboard />} />
+          <Route path="/addresses" element={<CustomerDashboard />} />
 
           {/* ── Public routes (redirect if already logged in) ──── */}
           <Route
