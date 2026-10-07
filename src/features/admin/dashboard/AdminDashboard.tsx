@@ -1,11 +1,13 @@
 import { useAuthStore } from '@/store/auth.store';
 import { AdminOperations } from './AdminOperations';
 import React, { useState, useEffect, useCallback } from 'react';
-import { DashboardLayout } from '@/components/layout/DashboardLayout/DashboardLayout';
+import { askReason, toast } from '@/lib/dialog';
+import { DashboardLayout, Glyph } from '@/components/layout/DashboardLayout/DashboardLayout';
 import { adminApi, type PendingSeller } from '../api/admin.api';
 import '@/components/layout/DashboardLayout/DashboardLayout.css';
+import './AdminWorkspace.css';
 
-type Section = 'overview' | 'sellers' | 'delivery' | 'users' | 'orders' | 'audit' | 'settings';
+type Section = 'overview' | 'sellers' | 'delivery' | 'users' | 'orders' | 'products' | 'reports' | 'finance' | 'audit' | 'settings';
 
 export const AdminDashboard: React.FC = () => {
   const [section, setSection] = useState<Section>('overview');
@@ -40,37 +42,37 @@ export const AdminDashboard: React.FC = () => {
       await adminApi.approveSeller(sellerId);
       setSellers(prev => prev.filter(s => s.id !== sellerId));
       setAllSellers(prev => prev.map(s => s.id === sellerId ? { ...s, status: 'approved' } : s));
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to approve seller');
+    } catch (err: any) {
+      toast(err.response?.data?.message || err.message || 'Failed to approve seller', 'error');
     } finally {
       setActionLoading(null);
     }
   };
 
   const handleReject = async (sellerId: string) => {
-    const reason = window.prompt('Enter rejection reason:');
+    const reason = await askReason({ title: 'Reject seller application', message: 'The seller will see this reason, so keep it clear and actionable.', label: 'Rejection reason', confirmLabel: 'Reject', tone: 'danger' });
     if (!reason) return;
     setActionLoading(sellerId + '-reject');
     try {
       await adminApi.rejectSeller(sellerId, reason);
       setSellers(prev => prev.filter(s => s.id !== sellerId));
       setAllSellers(prev => prev.map(s => s.id === sellerId ? { ...s, status: 'rejected' } : s));
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to reject seller');
+    } catch (err: any) {
+      toast(err.response?.data?.message || err.message || 'Failed to reject seller', 'error');
     } finally {
       setActionLoading(null);
     }
   };
 
   const handleSuspend = async (sellerId: string) => {
-    const reason = window.prompt('Enter suspension reason:');
+    const reason = await askReason({ title: 'Suspend seller', message: 'Their products are hidden from the shop while suspended.', label: 'Suspension reason', confirmLabel: 'Suspend', tone: 'danger' });
     if (!reason) return;
     setActionLoading(sellerId + '-suspend');
     try {
       await adminApi.suspendSeller(sellerId, reason);
       setAllSellers(prev => prev.map(s => s.id === sellerId ? { ...s, status: 'suspended' } : s));
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to suspend seller');
+    } catch (err: any) {
+      toast(err.response?.data?.message || err.message || 'Failed to suspend seller', 'error');
     } finally {
       setActionLoading(null);
     }
@@ -81,35 +83,39 @@ export const AdminDashboard: React.FC = () => {
   const suspendedCount = allSellers.filter(s => s.status === 'suspended').length;
 
   const navItems = [
-    ...(useAuthStore.getState().user?.roles.includes('super_admin') ? [{ label: 'Platform Pricing', icon: '⚙️', active: section === 'settings', onClick: () => setSection('settings') }] : []),
-    { label: 'Overview',         icon: '📊', active: section === 'overview',  onClick: () => setSection('overview') },
-    { label: 'Seller Approvals', icon: '🏪', active: section === 'sellers',   onClick: () => setSection('sellers'),  badge: pendingCount },
-    { label: 'Delivery Partners',icon: '🏍️', active: section === 'delivery',  onClick: () => setSection('delivery') },
-    { label: 'Users',            icon: '👥', active: section === 'users',     onClick: () => setSection('users') },
-    { label: 'Orders',           icon: '📦', active: section === 'orders',    onClick: () => setSection('orders') },
-    { label: 'Audit Logs',       icon: '🔍', active: section === 'audit',     onClick: () => setSection('audit') },
+    { label: 'Overview',         icon: '', active: section === 'overview',  onClick: () => setSection('overview') },
+    { label: 'Seller Approvals', icon: '', active: section === 'sellers',   onClick: () => setSection('sellers'),  badge: pendingCount },
+    { label: 'Delivery Partners',icon: '', active: section === 'delivery',  onClick: () => setSection('delivery') },
+    { label: 'Orders',           icon: '', active: section === 'orders',    onClick: () => setSection('orders') },
+    { label: 'Products',         icon: '', active: section === 'products',  onClick: () => setSection('products') },
+    { label: 'Users',            icon: '', active: section === 'users',     onClick: () => setSection('users') },
+    { label: 'Finance', icon: '', active: section === 'finance', onClick: () => setSection('finance') },
+    { label: 'Reports', icon: '', active: section === 'reports', onClick: () => setSection('reports') },
+    { label: 'Audit Logs',       icon: '', active: section === 'audit',     onClick: () => setSection('audit') },
+    ...(useAuthStore.getState().user?.roles.includes('super_admin') ? [{ label: 'Platform Pricing', icon: '', active: section === 'settings', onClick: () => setSection('settings') }] : []),
   ];
 
   if (loading) {
     return (
-      <DashboardLayout role="Manager" roleColor="hsl(37, 90%, 55%)" navItems={navItems}>
+      <DashboardLayout role={useAuthStore.getState().user?.roles.includes('super_admin') ? 'Super Admin' : 'Manager'} roleColor="hsl(37, 90%, 55%)" navItems={navItems}>
         <div className="dash-loader"><div className="dash-loader__spinner" /></div>
       </DashboardLayout>
     );
   }
 
   return (
-    <DashboardLayout role="Manager" roleColor="hsl(37, 90%, 55%)" navItems={navItems}>
+    <DashboardLayout role={useAuthStore.getState().user?.roles.includes('super_admin') ? 'Super Admin' : 'Manager'} roleColor="hsl(37, 90%, 55%)" navItems={navItems}>
       {error && (
         <div className="dash-alert dash-alert--error">
-          ⚠️ {error}&nbsp;
+          <Glyph name="alert" size={16} /> {error}&nbsp;
           <button className="dash-btn dash-btn--ghost" onClick={loadSellers} style={{ marginLeft: 'auto' }}>Retry</button>
         </div>
       )}
 
       {/* ── OVERVIEW ── */}
       {section === 'overview' && (
-        <>
+        <section className="admin-workspace">
+          <header className="admin-page-header"><div><span className="admin-eyebrow">Operations command center</span><h1>Platform overview</h1><p>Review seller health and the work currently requiring attention.</p></div><span className="admin-header-count">Live operations</span></header>
           <div className="dash-metrics">
             <div className="dash-metric-card">
               <div className="dash-metric-card__icon">⏳</div>
@@ -117,17 +123,17 @@ export const AdminDashboard: React.FC = () => {
               <div className="dash-metric-card__label">Pending Approvals</div>
             </div>
             <div className="dash-metric-card">
-              <div className="dash-metric-card__icon">✅</div>
+              <div className="dash-metric-card__icon"><Glyph name="check" size={22} /></div>
               <div className="dash-metric-card__value">{approvedCount}</div>
               <div className="dash-metric-card__label">Approved Sellers</div>
             </div>
             <div className="dash-metric-card">
-              <div className="dash-metric-card__icon">⛔</div>
+              <div className="dash-metric-card__icon"><Glyph name="ban" size={22} /></div>
               <div className="dash-metric-card__value">{suspendedCount}</div>
               <div className="dash-metric-card__label">Suspended Sellers</div>
             </div>
             <div className="dash-metric-card">
-              <div className="dash-metric-card__icon">🏪</div>
+              <div className="dash-metric-card__icon"><Glyph name="store" size={22} /></div>
               <div className="dash-metric-card__value">{allSellers.length}</div>
               <div className="dash-metric-card__label">Total Sellers</div>
             </div>
@@ -136,7 +142,7 @@ export const AdminDashboard: React.FC = () => {
           {/* Pending approvals prompt */}
           {pendingCount > 0 && (
             <div className="dash-alert dash-alert--warning">
-              ⚠️ <strong>{pendingCount}</strong> seller application{pendingCount > 1 ? 's' : ''} awaiting review.
+              <Glyph name="alert" size={16} /> <strong>{pendingCount}</strong> seller application{pendingCount > 1 ? 's' : ''} awaiting review.
               <button className="dash-btn dash-btn--warning" onClick={() => setSection('sellers')} style={{ marginLeft: 'auto' }}>
                 Review Now →
               </button>
@@ -153,16 +159,13 @@ export const AdminDashboard: React.FC = () => {
             onSuspend={handleSuspend}
             actionLoading={actionLoading}
           />
-        </>
+        </section>
       )}
 
       {/* ── SELLERS ── */}
       {section === 'sellers' && (
-        <>
-          <div className="dash-section-header">
-            <h2 className="dash-section-title">Seller Management</h2>
-            <span style={{ fontSize: '0.85rem', color: 'hsl(220,10%,55%)' }}>{allSellers.length} seller{allSellers.length !== 1 ? 's' : ''}</span>
-          </div>
+        <section className="admin-workspace">
+          <header className="admin-page-header"><div><span className="admin-eyebrow">Marketplace governance</span><h1>Seller management</h1><p>Review applications and manage approved marketplace businesses.</p></div><span className="admin-header-count">{allSellers.length} sellers</span></header>
           <SellerApplicationsTable
             sellers={allSellers}
             onApprove={handleApprove}
@@ -170,11 +173,11 @@ export const AdminDashboard: React.FC = () => {
             onSuspend={handleSuspend}
             actionLoading={actionLoading}
           />
-        </>
+        </section>
       )}
 
       {/* ── PLACEHOLDER SECTIONS ── */}
-      {['delivery', 'users', 'orders', 'audit', 'settings'].includes(section) && <AdminOperations section={section} />}
+      {['delivery', 'users', 'orders', 'products', 'reports', 'finance', 'audit', 'settings'].includes(section) && <AdminOperations section={section} />}
 
     </DashboardLayout>
   );
@@ -196,7 +199,7 @@ const SellerApplicationsTable: React.FC<SellerApplicationsTableProps> = ({
     return (
       <div className="dash-table-wrap">
         <div className="dash-empty">
-          <div className="dash-empty__icon">🎉</div>
+          <div className="dash-empty__icon"><Glyph name="party" size={30} /></div>
           <div className="dash-empty__text">No pending seller applications. All caught up!</div>
         </div>
       </div>
@@ -240,7 +243,7 @@ const SellerApplicationsTable: React.FC<SellerApplicationsTableProps> = ({
                         disabled={actionLoading !== null}
                         onClick={() => onApprove(seller.id)}
                       >
-                        {actionLoading === seller.id + '-approve' ? '⏳' : '✅ Approve'}
+                        {actionLoading === seller.id + '-approve' ? '…' : 'Approve'}
                       </button>
                       <button
                         id={`reject-seller-${seller.id}`}
@@ -248,7 +251,7 @@ const SellerApplicationsTable: React.FC<SellerApplicationsTableProps> = ({
                         disabled={actionLoading !== null}
                         onClick={() => onReject(seller.id)}
                       >
-                        {actionLoading === seller.id + '-reject' ? '⏳' : '✗ Reject'}
+                        {actionLoading === seller.id + '-reject' ? '…' : 'Reject'}
                       </button>
                     </>
                   )}
@@ -259,7 +262,7 @@ const SellerApplicationsTable: React.FC<SellerApplicationsTableProps> = ({
                       disabled={actionLoading !== null}
                       onClick={() => onSuspend(seller.id)}
                     >
-                      {actionLoading === seller.id + '-suspend' ? '⏳' : '⚠️ Suspend'}
+                      {actionLoading === seller.id + '-suspend' ? '…' : 'Suspend'}
                     </button>
                   )}
                 </div>

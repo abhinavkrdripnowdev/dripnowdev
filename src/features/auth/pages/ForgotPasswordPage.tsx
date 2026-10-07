@@ -132,7 +132,7 @@ export const ForgotPasswordPage: React.FC = () => {
             ← Back to login
           </Link>
           <div className="auth-header">
-            <div className="auth-icon-badge">🔑</div>
+            <span className="auth-eyebrow"><i />Account recovery</span>
             <h2 className="auth-title">Forgot your password?</h2>
             <p className="auth-subtitle">
               Enter your registered email address and we'll send you a 6-digit OTP code to reset your password.
@@ -176,7 +176,7 @@ export const ForgotPasswordPage: React.FC = () => {
             ← Change email
           </button>
           <div className="auth-header">
-            <div className="auth-icon-badge">🛡️</div>
+            <span className="auth-eyebrow"><i />Check your email</span>
             <h2 className="auth-title">Verify OTP Code</h2>
             <p className="auth-subtitle">
               We sent a 6-digit OTP code to <strong style={{ color: 'var(--color-text)' }}>{email}</strong>
@@ -229,7 +229,7 @@ export const ForgotPasswordPage: React.FC = () => {
       {step === 'reset' && (
         <div className="animate-fade-in-up">
           <div className="auth-header">
-            <div className="auth-icon-badge">🔐</div>
+            <span className="auth-eyebrow"><i />New password</span>
             <h2 className="auth-title">Set new password</h2>
             <p className="auth-subtitle">
               Enter your new password for <strong style={{ color: 'var(--color-text)' }}>{email}</strong>.
@@ -277,7 +277,7 @@ export const ForgotPasswordPage: React.FC = () => {
       {/* ── Step 4: Success ───────────────────────────────────────────── */}
       {step === 'success' && (
         <div className="animate-bounce-in" style={{ textAlign: 'center' }}>
-          <div className="auth-success-icon">🎉</div>
+          <div className="auth-success-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg></div>
           <h2 className="auth-title">Password reset successful!</h2>
           <p className="auth-subtitle" style={{ marginBottom: 'var(--space-8)' }}>
             Your password has been updated. All active sessions have been signed out for security.

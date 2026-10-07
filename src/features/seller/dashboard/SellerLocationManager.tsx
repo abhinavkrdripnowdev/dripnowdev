@@ -79,20 +79,20 @@ export const SellerLocationManager: React.FC = () => {
   if (loading) return <div>Loading location...</div>;
 
   return (
-    <div style={{ padding: 24, background: 'white', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+    <div className="seller-loc-card">
       {error && <p role="alert">{error}</p>}
       <h2 style={{ marginBottom: 16 }}>Pickup Location (Warehouse)</h2>
-      <p style={{ color: '#64748b', marginBottom: 24 }}>Set the precise location from where DripNow delivery partners will pick up your orders.</p>
+      <p className="seller-loc-muted">Set the precise location from where DripNow delivery partners will pick up your orders.</p>
 
       {!isEditing && location ? (
-        <div style={{ background: '#f8fafc', padding: 20, borderRadius: 8 }}>
+        <div className="seller-loc-box">
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <div>
               <strong>{location.address_line1}</strong>
               {location.address_line2 && <div>{location.address_line2}</div>}
               <div>{location.city}, {location.state} - {location.postal_code}</div>
               {location.latitude && location.longitude && (
-                <div style={{ color: '#2874f0', fontSize: '0.85rem', marginTop: 8 }}>
+                <div className="seller-loc-note">
                   Coordinates: {location.latitude}, {location.longitude}
                 </div>
               )}
@@ -121,7 +121,7 @@ export const SellerLocationManager: React.FC = () => {
                 type="text" 
                 value={formData.address_line1} 
                 onChange={e => setFormData({...formData, address_line1: e.target.value})}
-                style={{ padding: 10, border: '1px solid #cbd5e1', borderRadius: 4 }}
+                className="seller-loc-input"
               />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -130,7 +130,7 @@ export const SellerLocationManager: React.FC = () => {
                 type="text" 
                 value={formData.address_line2} 
                 onChange={e => setFormData({...formData, address_line2: e.target.value})}
-                style={{ padding: 10, border: '1px solid #cbd5e1', borderRadius: 4 }}
+                className="seller-loc-input"
               />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -140,7 +140,7 @@ export const SellerLocationManager: React.FC = () => {
                 type="text" 
                 value={formData.city} 
                 onChange={e => setFormData({...formData, city: e.target.value})}
-                style={{ padding: 10, border: '1px solid #cbd5e1', borderRadius: 4 }}
+                className="seller-loc-input"
               />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -150,7 +150,7 @@ export const SellerLocationManager: React.FC = () => {
                 type="text" 
                 value={formData.state} 
                 onChange={e => setFormData({...formData, state: e.target.value})}
-                style={{ padding: 10, border: '1px solid #cbd5e1', borderRadius: 4 }}
+                className="seller-loc-input"
               />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -160,7 +160,7 @@ export const SellerLocationManager: React.FC = () => {
                 type="text" 
                 value={formData.postal_code} 
                 onChange={e => setFormData({...formData, postal_code: e.target.value})}
-                style={{ padding: 10, border: '1px solid #cbd5e1', borderRadius: 4 }}
+                className="seller-loc-input"
               />
             </div>
           </div>

@@ -1,21 +1,21 @@
 .input-group { display: flex; flex-direction: column; gap: var(--space-2); }
 
 .input-label {
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--color-text-muted);
-  letter-spacing: 0.01em;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text);
+  letter-spacing: 0;
   transition: color var(--transition-fast);
 }
-.input-group:focus-within .input-label { color: var(--color-primary-light); }
+.input-group:focus-within .input-label { color: var(--color-text); }
 
 .input-wrapper { position: relative; display: flex; align-items: center; }
 
 .input-field {
   width: 100%;
-  background: var(--color-surface);
+  background: var(--color-bg);
   border: 1.5px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: 12px;
   color: var(--color-text);
   font-size: var(--text-base);
   font-family: var(--font-body);
@@ -32,11 +32,11 @@
 
 .input-field:focus {
   border-color: var(--color-border-focus);
-  box-shadow: 0 0 0 3px var(--color-primary-glow);
-  background: hsl(220, 13%, 15%);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-text) 14%, transparent);
+  background: var(--color-bg);
 }
 
-.input-field:hover:not(:focus):not(:disabled) { border-color: hsl(220, 10%, 32%); }
+.input-field:hover:not(:focus):not(:disabled) { border-color: var(--color-text-placeholder); }
 .input-field:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .input-field--has-left { padding-left: 3rem; }
@@ -57,28 +57,22 @@
 
 /* Inline verification controls */
 .input-verify-btn {
-  background: linear-gradient(135deg, hsl(262, 83%, 62%), hsl(24, 90%, 55%));
-  color: #ffffff !important;
+  background: var(--color-text);
+  color: var(--color-bg) !important;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: 999px;
   padding: 6px 14px;
   font-size: 0.78rem;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(168, 85, 247, 0.4);
-  transition: all 0.15s ease;
+  transition: background .15s ease, transform .15s ease;
   white-space: nowrap;
 }
-.input-verify-btn:hover:not(:disabled) {
-  opacity: 0.95;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(168, 85, 247, 0.6);
-}
+.input-verify-btn:hover:not(:disabled) { background: var(--color-primary); color: #fff !important; }
 .input-verify-btn:disabled {
-  background: rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.5) !important;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: none;
+  background: var(--color-surface-2);
+  color: var(--color-text-placeholder) !important;
+  border: 1px solid var(--color-border);
   cursor: not-allowed;
 }
 

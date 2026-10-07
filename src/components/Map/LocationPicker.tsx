@@ -4,6 +4,7 @@ import L from 'leaflet';
 import api from '@/lib/api';
 import 'leaflet/dist/leaflet.css';
 import './LocationPicker.css';
+import { GoogleLocationMap } from './GoogleLocationMap';
 
 // Fix Leaflet icon issue in React
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -166,14 +167,14 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
       </div>
 
       <div className="map-container-wrapper">
-        <MapContainer center={position} zoom={15} style={{ height: '300px', width: '100%', borderRadius: '8px' }}>
+        {(import.meta.env.VITE_MAPS_PROVIDER || 'google') === 'google' ? <GoogleLocationMap position={position} onSelect={(lat, lng) => { setPosition([lat, lng]); void handleReverseGeocode(lat, lng); }} /> : <MapContainer center={position} zoom={15} style={{ height: '300px', width: '100%', borderRadius: '8px' }}>
           <TileLayer
             attribution='&copy; OpenStreetMap contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           <MapCenterer position={position} />
           <DraggableMarker position={position} setPosition={setPosition} onDragEnd={handleReverseGeocode} />
-        </MapContainer>
+        </MapContainer>}
       </div>
 
       <div className="location-details">

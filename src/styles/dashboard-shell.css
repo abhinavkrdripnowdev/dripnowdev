@@ -1,0 +1,130 @@
+/* ═══ Dashboard shell: aligned with the storefront (ink, crimson, gold) ═══ */
+html .dash-layout { background: #f6f5f3; }
+html .dash-main { background: #f6f5f3; }
+
+/* Brand */
+html .dash-sidebar__logo { background: #111 !important; border-bottom: 0; padding: 18px 20px; gap: 12px; }
+html .dash-brandmark { width: 40px; height: 40px; flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 12px; background: #fff; color: #000; line-height: 1; }
+html .dash-brandmark b { font: 800 17px/1 var(--font-display); letter-spacing: -.04em; }
+html .dash-brandmark small { font-size: 7px; font-weight: 700; letter-spacing: .12em; margin-top: 1px; }
+html .dash-sidebar__logo-brand { font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; letter-spacing: -.05em; line-height: 1; color: #fff; }
+html .dash-sidebar__logo-brand i { font-style: normal; color: #f6c453; }
+html .dash-sidebar__logo-role { margin-top: 5px; font-size: .65rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: #f6c453; }
+
+/* Navigation: pill items like the storefront chips */
+html .dash-sidebar__nav { padding: 14px 12px; gap: 4px; }
+html .dash-sidebar__nav-item { border-radius: 999px; padding: 10px 14px; font-weight: 600; box-shadow: none; }
+html .dash-sidebar__nav-item:hover { background: #efece8; color: #111; }
+html .dash-sidebar__nav-item--active,
+html .dash-sidebar__nav-item--active:hover { background: #111; color: #fff; box-shadow: none; font-weight: 700; }
+html .dash-sidebar__nav-icon { display: inline-grid; place-items: center; width: 20px; color: inherit; opacity: .8; }
+html .dash-sidebar__nav-item--active .dash-sidebar__nav-icon { color: #f6c453; opacity: 1; }
+html .dash-sidebar__nav-badge { background: #9b1c2e; color: #fff; border-radius: 99px; }
+html .dash-sidebar__logout { gap: 10px; font-weight: 600; }
+
+/* Header */
+html .dash-header { background: rgba(255, 255, 255, .9); backdrop-filter: blur(12px); }
+html .dash-header__greeting { font-family: var(--font-display); letter-spacing: -.03em; font-size: 1.05rem; }
+html .dash-header__right { gap: 10px; }
+html .dash-notification-btn { display: inline-grid; place-items: center; width: 38px; height: 38px; padding: 0; border-radius: 50%; position: relative; }
+html .dash-notification-btn > span { position: absolute; top: -3px; right: -3px; background: #9b1c2e; color: #fff; }
+html .dash-header__badge { border-radius: 999px; background: #111 !important; color: #f6c453 !important; border: 0 !important; letter-spacing: .1em; text-transform: uppercase; font-size: .68rem; font-weight: 800; }
+html .dash-mobile-menu { display: none; }
+
+/* Page headings: Space Grotesk, like the shop */
+html .seller-page-header h1, html .delivery-page-header h1, html .admin-page-header h1, html .dash-page-title, html .dash-section-title, html .delivery-review-state h1, html .seller-card__heading h2, html .delivery-card-heading h2, html .admin-card h2 {
+  font-family: var(--font-display); letter-spacing: -.04em;
+}
+html .seller-eyebrow, html .delivery-eyebrow, html .admin-eyebrow { letter-spacing: .14em; }
+
+/* Metric and empty-state icons: one consistent line-icon treatment */
+html .dash-metric-card__icon, html .dash-quick-action__icon, html .dash-empty__icon { display: inline-grid; place-items: center; }
+html .dash-metric-card__icon { width: 40px; height: 40px; border-radius: 12px; background: #111; color: #f6c453; }
+html .dash-empty__icon { width: 64px; height: 64px; border-radius: 50%; background: #efece8; color: #6b6670; margin: 0 auto 8px; }
+html .dash-quick-action__icon { width: 40px; height: 40px; border-radius: 12px; background: #efece8; color: #111; }
+
+/* Buttons: pill, ink-hover to match the shop */
+html .seller-btn, html .delivery-primary-btn, html .delivery-secondary-btn, html .admin-primary-btn, html .admin-success-btn, html .admin-danger-btn, html .admin-soft-btn { border-radius: 999px; }
+
+@media (max-width: 900px) { html .dash-mobile-menu { display: inline-grid; place-items: center; } }
+
+/* ── Dark ──────────────────────────────────────────────────────────────── */
+html[data-theme='dark'] .dash-layout, html[data-theme='dark'] .dash-main { background: #0e0d11; }
+html[data-theme='dark'] .dash-sidebar { background: #121116; border-right-color: #2c2a34; }
+html[data-theme='dark'] .dash-sidebar__logo { background: #17161c !important; border-bottom: 1px solid #2c2a34; }
+html[data-theme='dark'] .dash-sidebar__nav-item { color: #c9c4d3; }
+html[data-theme='dark'] .dash-sidebar__nav-item:hover { background: #201f27; color: #fff; }
+html[data-theme='dark'] .dash-sidebar__nav-item--active,
+html[data-theme='dark'] .dash-sidebar__nav-item--active:hover { background: #f4f2f7; color: #111; }
+html[data-theme='dark'] .dash-sidebar__nav-item--active .dash-sidebar__nav-icon { color: #9b1c2e; }
+html[data-theme='dark'] .dash-header { background: rgba(14, 13, 17, .9); border-bottom-color: #2c2a34; }
+html[data-theme='dark'] .dash-header__badge { background: #f4f2f7 !important; color: #111 !important; }
+html[data-theme='dark'] .dash-metric-card__icon { background: #f4f2f7; color: #111; }
+html[data-theme='dark'] .dash-empty__icon, html[data-theme='dark'] .dash-quick-action__icon { background: #201f27; color: #c9c4d3; }
+html[data-theme='dark'] .dash-notification-btn { color: #e8e5ee; }
+
+/* ═══ Screens: one card / icon / table / form / button language ════════════ */
+/* Cards: hairline border, no heavy shadows */
+html .seller-card, html .delivery-card, html .admin-card, html .dash-metric-card, html .dash-table-wrap, html .dash-quick-action, html .dash-info-card,
+html .seller-mini-stats > div, html .delivery-metrics > div, html .admin-metrics > div, html .seller-product-card, html .seller-offer-card,
+html .delivery-order-card, html .delivery-active-card, html .delivery-history-table, html .admin-table, html .delivery-review-state, html .delivery-onboarding-aside {
+  box-shadow: none; border: 1px solid #e7e4ea; border-radius: 18px;
+}
+html .seller-card:hover, html .seller-product-card:hover, html .dash-quick-action:hover { box-shadow: 0 10px 28px rgba(23, 21, 26, .07); }
+
+/* Icon tiles: ink + gold, same as the shop's trust badges */
+html .admin-metrics > div > span, html .delivery-metrics > div > span, html .mini-stat-icon, html .seller-card__icon,
+html .admin-card-heading > span, html .delivery-card-heading > span, html .seller-card__icon--pink, html .seller-card__icon--blue {
+  background: #111 !important; color: #f6c453 !important; border-radius: 12px; box-shadow: none;
+}
+html .admin-card-heading > span svg, html .delivery-card-heading > span svg, html .admin-metrics > div > span svg { color: inherit; }
+
+/* Numbers in Space Grotesk */
+html .admin-metrics b, html .delivery-metrics b, html .seller-mini-stats strong, html .dash-metric-card__value, html .delivery-earnings-hero strong {
+  font-family: var(--font-display); letter-spacing: -.03em;
+}
+
+/* Tables */
+html .dash-table-wrap table, html .admin-table, html .delivery-history-table { border-collapse: collapse; }
+html .dash-table-wrap th, html .admin-table-head, html .delivery-history-table thead th, html .delivery-history-head {
+  background: #faf9f7; color: #6b6670; font-size: .68rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+}
+html .dash-table-wrap tbody tr:hover, html .admin-table-row:hover { background: #faf9f7; }
+
+/* Forms */
+html .seller-workspace input, html .seller-workspace select, html .seller-workspace textarea,
+html .delivery-workspace input, html .delivery-workspace select, html .delivery-workspace textarea,
+html .admin-workspace input, html .admin-workspace select, html .admin-workspace textarea { border-radius: 12px; }
+html .seller-workspace input:focus, html .seller-workspace select:focus, html .seller-workspace textarea:focus,
+html .delivery-workspace input:focus, html .delivery-workspace select:focus, html .delivery-workspace textarea:focus,
+html .admin-workspace input:focus, html .admin-workspace select:focus, html .admin-workspace textarea:focus {
+  border-color: #111; box-shadow: 0 0 0 3px rgba(23, 21, 26, .12); outline: none;
+}
+
+/* Primary buttons: ink pill, crimson on hover; no glow */
+html .seller-btn--primary, html .delivery-primary-btn, html .admin-primary-btn, html .dash-btn--primary {
+  background: #111; color: #fff; border-color: #111; box-shadow: none; animation: none;
+}
+html .seller-btn--primary:hover:not(:disabled), html .delivery-primary-btn:hover:not(:disabled), html .admin-primary-btn:hover:not(:disabled) {
+  background: #9b1c2e; border-color: #9b1c2e; color: #fff; box-shadow: none; transform: none;
+}
+
+/* Status pills */
+html .delivery-pill, html .admin-pill, html .seller-header-chip, html .delivery-header-count, html .admin-count-chip { border-radius: 999px; }
+
+/* ── Dark ──────────────────────────────────────────────────────────────── */
+html[data-theme='dark'] .seller-card, html[data-theme='dark'] .delivery-card, html[data-theme='dark'] .admin-card, html[data-theme='dark'] .dash-metric-card,
+html[data-theme='dark'] .dash-table-wrap, html[data-theme='dark'] .dash-quick-action, html[data-theme='dark'] .dash-info-card,
+html[data-theme='dark'] .seller-mini-stats > div, html[data-theme='dark'] .delivery-metrics > div, html[data-theme='dark'] .admin-metrics > div,
+html[data-theme='dark'] .seller-product-card, html[data-theme='dark'] .seller-offer-card, html[data-theme='dark'] .delivery-order-card,
+html[data-theme='dark'] .delivery-active-card, html[data-theme='dark'] .delivery-history-table, html[data-theme='dark'] .admin-table,
+html[data-theme='dark'] .delivery-review-state, html[data-theme='dark'] .delivery-onboarding-aside { border-color: #2c2a34; background: #17161c; }
+html[data-theme='dark'] .admin-metrics > div > span, html[data-theme='dark'] .delivery-metrics > div > span, html[data-theme='dark'] .mini-stat-icon,
+html[data-theme='dark'] .seller-card__icon, html[data-theme='dark'] .admin-card-heading > span, html[data-theme='dark'] .delivery-card-heading > span { background: #f4f2f7 !important; color: #111 !important; }
+html[data-theme='dark'] .dash-table-wrap th, html[data-theme='dark'] .admin-table-head, html[data-theme='dark'] .delivery-history-table thead th, html[data-theme='dark'] .delivery-history-head { background: #1c1b22; color: #a39dad; }
+html[data-theme='dark'] .dash-table-wrap tbody tr:hover, html[data-theme='dark'] .admin-table-row:hover { background: #1c1b22; }
+html[data-theme='dark'] .seller-workspace input:focus, html[data-theme='dark'] .seller-workspace select:focus, html[data-theme='dark'] .seller-workspace textarea:focus,
+html[data-theme='dark'] .delivery-workspace input:focus, html[data-theme='dark'] .delivery-workspace select:focus, html[data-theme='dark'] .delivery-workspace textarea:focus,
+html[data-theme='dark'] .admin-workspace input:focus, html[data-theme='dark'] .admin-workspace select:focus, html[data-theme='dark'] .admin-workspace textarea:focus { border-color: #f4f2f7; box-shadow: 0 0 0 3px rgba(244, 242, 247, .16); }
+html[data-theme='dark'] .seller-btn--primary, html[data-theme='dark'] .delivery-primary-btn, html[data-theme='dark'] .admin-primary-btn, html[data-theme='dark'] .dash-btn--primary { background: #f4f2f7; color: #111; border-color: #f4f2f7; }
+html[data-theme='dark'] .seller-btn--primary:hover:not(:disabled), html[data-theme='dark'] .delivery-primary-btn:hover:not(:disabled), html[data-theme='dark'] .admin-primary-btn:hover:not(:disabled) { background: #f6c453; border-color: #f6c453; color: #111; }

@@ -38,13 +38,13 @@ const PageLoader: React.FC = () => (
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: 'hsl(220, 15%, 7%)',
+    background: 'var(--color-bg)',
   }}>
     <div style={{
       width: '36px',
       height: '36px',
-      border: '3px solid hsl(262, 83%, 58%, 0.3)',
-      borderTopColor: 'hsl(262, 83%, 58%)',
+      border: '3px solid var(--color-border)',
+      borderTopColor: 'var(--color-primary)',
       borderRadius: '50%',
       animation: 'spin 0.8s linear infinite',
     }} />
@@ -58,6 +58,14 @@ export const AppRouter: React.FC = () => {
         <Routes>
           {/* ── Root redirect ─────────────────────────────────── */}
           <Route path="/" element={<CustomerDashboard />} />
+          <Route path="/c/:slug" element={<CustomerDashboard />} />
+          <Route path="/c/:slug/:sub" element={<CustomerDashboard />} />
+          <Route path="/stores" element={<CustomerDashboard />} />
+          <Route path="/product/:id" element={<CustomerDashboard />} />
+          <Route path="/orders" element={<CustomerDashboard />} />
+          <Route path="/wishlist" element={<CustomerDashboard />} />
+          <Route path="/profile" element={<CustomerDashboard />} />
+          <Route path="/addresses" element={<CustomerDashboard />} />
 
           {/* ── Public routes (redirect if already logged in) ──── */}
           <Route

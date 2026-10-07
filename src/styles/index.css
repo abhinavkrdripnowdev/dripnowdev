@@ -1,5 +1,5 @@
 /* ─── Google Fonts Import ──────────────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
 
 /* ─── CSS Reset ────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -12,48 +12,48 @@ p, h1, h2, h3, h4, h5, h6 { overflow-wrap: break-word; }
 
 /* ─── Design Tokens ────────────────────────────────────────────────────────── */
 :root {
-  /* Brand Colors */
-  --color-primary: hsl(262, 83%, 58%);
-  --color-primary-light: hsl(262, 83%, 68%);
-  --color-primary-dark: hsl(262, 83%, 46%);
-  --color-primary-glow: hsl(262, 83%, 58%, 0.25);
+  /* Brand: shop palette (ink, crimson, gold) */
+  --color-primary: hsl(351, 72%, 58%);
+  --color-primary-light: hsl(351, 80%, 68%);
+  --color-primary-dark: hsl(351, 72%, 44%);
+  --color-primary-glow: hsl(351, 72%, 58%, 0.16);
 
-  --color-accent: hsl(24, 90%, 55%);
-  --color-accent-light: hsl(24, 90%, 65%);
-  --color-accent-glow: hsl(24, 90%, 55%, 0.25);
+  --color-accent: hsl(42, 92%, 63%);
+  --color-accent-light: hsl(42, 92%, 72%);
+  --color-accent-glow: hsl(42, 92%, 63%, 0.18);
 
-  /* Background */
-  --color-bg: hsl(220, 15%, 7%);
-  --color-bg-2: hsl(220, 14%, 10%);
-  --color-surface: hsl(220, 13%, 13%);
-  --color-surface-2: hsl(220, 12%, 17%);
-  --color-surface-hover: hsl(220, 12%, 19%);
+  /* Surfaces */
+  --color-bg: hsl(255, 12%, 6%);
+  --color-bg-2: hsl(255, 10%, 8%);
+  --color-surface: hsl(255, 8%, 10%);
+  --color-surface-2: hsl(255, 8%, 13%);
+  --color-surface-hover: hsl(255, 8%, 16%);
 
   /* Borders */
-  --color-border: hsl(220, 10%, 22%);
-  --color-border-focus: hsl(262, 83%, 58%);
+  --color-border: hsl(255, 8%, 19%);
+  --color-border-focus: hsl(255, 20%, 96%);
 
   /* Text */
-  --color-text: hsl(220, 15%, 95%);
-  --color-text-muted: hsl(220, 10%, 60%);
-  --color-text-placeholder: hsl(220, 10%, 45%);
+  --color-text: hsl(255, 20%, 96%);
+  --color-text-muted: hsl(255, 8%, 66%);
+  --color-text-placeholder: hsl(255, 8%, 48%);
 
   /* Semantic */
-  --color-success: hsl(142, 71%, 45%);
-  --color-success-bg: hsl(142, 71%, 45%, 0.12);
-  --color-error: hsl(0, 72%, 60%);
-  --color-error-bg: hsl(0, 72%, 60%, 0.12);
-  --color-warning: hsl(38, 92%, 55%);
-  --color-warning-bg: hsl(38, 92%, 55%, 0.12);
+  --color-success: hsl(150, 62%, 52%);
+  --color-success-bg: hsl(150, 62%, 52%, 0.12);
+  --color-error: hsl(354, 85%, 68%);
+  --color-error-bg: hsl(354, 85%, 68%, 0.12);
+  --color-warning: hsl(38, 92%, 58%);
+  --color-warning-bg: hsl(38, 92%, 58%, 0.12);
 
-  /* Gradients */
-  --gradient-brand: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
-  --gradient-brand-subtle: linear-gradient(135deg, hsl(262, 83%, 58%, 0.15) 0%, hsl(24, 90%, 55%, 0.1) 100%);
-  --gradient-surface: linear-gradient(145deg, hsl(220, 13%, 15%) 0%, hsl(220, 12%, 11%) 100%);
+  /* Flat brand "gradients" (kept as tokens for existing usages) */
+  --gradient-brand: linear-gradient(var(--color-primary), var(--color-primary));
+  --gradient-brand-subtle: linear-gradient(var(--color-primary-glow), var(--color-primary-glow));
+  --gradient-surface: linear-gradient(var(--color-surface), var(--color-surface));
 
   /* Typography */
   --font-body: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-display: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+  --font-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
   /* Font Sizes */
@@ -91,8 +91,8 @@ p, h1, h2, h3, h4, h5, h6 { overflow-wrap: break-word; }
   --shadow-md: 0 4px 12px hsl(0 0% 0% / 0.4);
   --shadow-lg: 0 8px 24px hsl(0 0% 0% / 0.5);
   --shadow-xl: 0 16px 48px hsl(0 0% 0% / 0.6);
-  --shadow-glow: 0 0 24px var(--color-primary-glow);
-  --shadow-glow-accent: 0 0 24px var(--color-accent-glow);
+  --shadow-glow: 0 0 0 3px var(--color-primary-glow);
+  --shadow-glow-accent: 0 0 0 3px var(--color-accent-glow);
 
   /* Transitions */
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -114,10 +114,6 @@ body {
   font-size: var(--text-base);
   color: var(--color-text);
   background-color: var(--color-bg);
-  background-image:
-    radial-gradient(ellipse 80% 50% at 50% -20%, hsl(262, 83%, 20%, 0.35), transparent),
-    radial-gradient(ellipse 50% 40% at 80% 80%, hsl(24, 90%, 20%, 0.15), transparent);
-  background-attachment: fixed;
 }
 
 /* ─── Typography ───────────────────────────────────────────────────────────── */
@@ -150,4 +146,31 @@ a:hover { color: var(--color-primary); }
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+/* ─── Light theme tokens (auth screens and shared UI; default tokens above are dark) ── */
+html[data-theme='light'] {
+  --color-primary: hsl(351, 70%, 34%);
+  --color-primary-light: hsl(351, 70%, 38%);
+  --color-primary-dark: hsl(351, 70%, 26%);
+  --color-primary-glow: hsl(351, 70%, 34%, 0.12);
+  --color-accent: hsl(42, 88%, 48%);
+  --color-bg: hsl(30, 14%, 96%);
+  --color-bg-2: hsl(30, 12%, 94%);
+  --color-surface: hsl(0, 0%, 100%);
+  --color-surface-2: hsl(30, 10%, 96%);
+  --color-surface-hover: hsl(30, 10%, 93%);
+  --color-border: hsl(30, 8%, 88%);
+  --color-border-focus: hsl(255, 15%, 10%);
+  --color-text: hsl(255, 15%, 10%);
+  --color-text-muted: hsl(255, 6%, 40%);
+  --color-text-placeholder: hsl(255, 5%, 60%);
+  --color-success: hsl(150, 60%, 28%);
+  --color-success-bg: hsl(150, 60%, 28%, 0.1);
+  --color-error: hsl(354, 70%, 42%);
+  --color-error-bg: hsl(354, 70%, 42%, 0.09);
+  --color-warning: hsl(32, 92%, 36%);
+  --shadow-md: 0 4px 12px hsl(255 20% 10% / 0.08);
+  --shadow-lg: 0 8px 24px hsl(255 20% 10% / 0.1);
+  --shadow-xl: 0 16px 48px hsl(255 20% 10% / 0.12);
 }

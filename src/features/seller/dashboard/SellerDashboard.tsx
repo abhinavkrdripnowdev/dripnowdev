@@ -1,11 +1,14 @@
 import { SellerCatalog } from './SellerCatalog';
+import { Icon } from '@/components/ui/Icon/Icon';
 import { SellerOffers } from './SellerOffers';
 import { SellerApplication } from './SellerApplication';
 import React, { useState, useEffect, useCallback } from 'react';
-import { DashboardLayout } from '@/components/layout/DashboardLayout/DashboardLayout';
-import { sellerApi, type SellerDashboard as SellerDashboardType, type SellerOrder } from '../api/seller.api';
+import { toast } from '@/lib/dialog';
+import { DashboardLayout, Glyph } from '@/components/layout/DashboardLayout/DashboardLayout';
+import { sellerApi, type SellerDashboard as SellerDashboardType, type SellerOrder, type SellerSettlement } from '../api/seller.api';
 import { SellerLocationManager } from './SellerLocationManager';
 import '@/components/layout/DashboardLayout/DashboardLayout.css';
+import './SellerWorkspace.css';
 
 type Section = 'overview' | 'orders' | 'products' | 'earnings' | 'location' | 'offers' | 'profile';
 
@@ -25,17 +28,29 @@ export const SellerDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+  const [settlements, setSettlements] = useState<SellerSettlement[]>([]);
 
   const loadDashboard = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const [dash, ords] = await Promise.all([
-        sellerApi.getDashboard(),
-        sellerApi.getOrders(),
+      const [dash, ords, earnings] = await Promise.all([
+        sellerApi.getDashboard().catch(() => null),
+        sellerApi.getOrders().catch(() => []),
+        sellerApi.getEarnings().catch(() => []),
       ]);
-      setDashboard(dash);
-      setOrders(ords);
+      setDashboard(dash ?? {
+        seller_id: '',
+        business_name: '',
+        status: 'draft',
+        total_products: 0,
+        low_stock_products_count: 0,
+        pending_orders_count: 0,
+        total_orders_count: 0,
+        total_earnings: 0,
+      });
+      setOrders(ords ?? []);
+      setSettlements(earnings ?? []);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to load dashboard';
       setError(msg);
@@ -55,36 +70,35 @@ export const SellerDashboard: React.FC = () => {
       const dash = await sellerApi.getDashboard();
       setDashboard(dash);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to update order status');
+      toast(err instanceof Error ? err.message : 'Failed to update order status', 'error');
     } finally {
       setUpdatingOrderId(null);
     }
   };
 
   const navItems = [
-    { label: 'Profile & Documents', icon: '👤', active: section === 'profile', onClick: () => setSection('profile') },
-    { label: 'Offers', icon: '🎟', active: section === 'offers', onClick: () => setSection('offers') },
-    { label: 'Overview',  icon: '📊', active: section === 'overview',  onClick: () => setSection('overview') },
-    { label: 'Orders',    icon: '📦', active: section === 'orders',    onClick: () => setSection('orders'),    badge: dashboard?.pending_orders_count },
-    { label: 'Products',  icon: '👕', active: section === 'products',  onClick: () => setSection('products') },
-    { label: 'Earnings',  icon: '💰', active: section === 'earnings',  onClick: () => setSection('earnings') },
-    { label: 'Location',  icon: '📍', active: section === 'location',  onClick: () => setSection('location') },
-    { label: 'Add Product', icon: '➕', onClick: () => setSection('products') },
+    { label: 'Overview',  icon: '', active: section === 'overview',  onClick: () => setSection('overview') },
+    { label: 'Orders',    icon: '', active: section === 'orders',    onClick: () => setSection('orders'),    badge: dashboard?.pending_orders_count },
+    { label: 'Products',  icon: '', active: section === 'products',  onClick: () => setSection('products') },
+    { label: 'Offers', icon: '', active: section === 'offers', onClick: () => setSection('offers') },
+    { label: 'Earnings',  icon: '', active: section === 'earnings',  onClick: () => setSection('earnings') },
+    { label: 'Location',  icon: '', active: section === 'location',  onClick: () => setSection('location') },
+    { label: 'Profile & Documents', icon: '', active: section === 'profile', onClick: () => setSection('profile') },
   ];
 
   if (loading) {
     return (
-      <DashboardLayout role="Seller" roleColor="hsl(262, 83%, 58%)" navItems={navItems}>
+      <DashboardLayout role="Seller" roleColor="hsl(351, 68%, 36%)" navItems={navItems}>
         <div className="dash-loader"><div className="dash-loader__spinner" /></div>
       </DashboardLayout>
     );
   }
 
   return (
-    <DashboardLayout role="Seller" roleColor="hsl(262, 83%, 58%)" navItems={navItems}>
+    <DashboardLayout role="Seller" roleColor="hsl(351, 68%, 36%)" navItems={navItems}>
       {error && (
         <div className="dash-alert dash-alert--error">
-          ⚠️ {error}&nbsp;
+          <Glyph name="alert" size={16} /> {error}&nbsp;
           <button className="dash-btn dash-btn--ghost" onClick={loadDashboard} style={{ marginLeft: 'auto' }}>
             Retry
           </button>
@@ -104,26 +118,26 @@ export const SellerDashboard: React.FC = () => {
         <>
           <div className="dash-metrics">
             <div className="dash-metric-card">
-              <div className="dash-metric-card__glow" style={{ background: 'hsl(262, 83%, 58%)' }} />
-              <div className="dash-metric-card__icon">👕</div>
+              <div className="dash-metric-card__glow" style={{ background: 'hsl(351, 68%, 36%)' }} />
+              <div className="dash-metric-card__icon"><Glyph name="bag" size={22} /></div>
               <div className="dash-metric-card__value">{dashboard?.total_products ?? 0}</div>
               <div className="dash-metric-card__label">Total Products</div>
             </div>
             <div className="dash-metric-card">
               <div className="dash-metric-card__glow" style={{ background: 'hsl(37, 90%, 55%)' }} />
-              <div className="dash-metric-card__icon">📦</div>
+              <div className="dash-metric-card__icon"><Glyph name="box" size={22} /></div>
               <div className="dash-metric-card__value">{dashboard?.pending_orders_count ?? 0}</div>
               <div className="dash-metric-card__label">Pending Orders</div>
             </div>
             <div className="dash-metric-card">
               <div className="dash-metric-card__glow" style={{ background: 'hsl(142, 70%, 45%)' }} />
-              <div className="dash-metric-card__icon">✅</div>
+              <div className="dash-metric-card__icon"><Glyph name="check" size={22} /></div>
               <div className="dash-metric-card__value">{dashboard?.total_orders_count ?? 0}</div>
               <div className="dash-metric-card__label">Total Orders</div>
             </div>
             <div className="dash-metric-card">
               <div className="dash-metric-card__glow" style={{ background: 'hsl(160, 84%, 39%)' }} />
-              <div className="dash-metric-card__icon">💰</div>
+              <div className="dash-metric-card__icon"><Glyph name="wallet" size={22} /></div>
               <div className="dash-metric-card__value">₹{(dashboard?.total_earnings ?? 0).toLocaleString('en-IN')}</div>
               <div className="dash-metric-card__label">Total Earnings</div>
             </div>
@@ -135,19 +149,19 @@ export const SellerDashboard: React.FC = () => {
           </div>
           <div className="dash-quick-actions">
             <button className="dash-quick-action" onClick={() => setSection('products')} id="seller-add-product-btn">
-              <div className="dash-quick-action__icon">➕</div>
+              <div className="dash-quick-action__icon"><Glyph name="plus" size={22} /></div>
               <div className="dash-quick-action__label">Add Product</div>
             </button>
             <button className="dash-quick-action" onClick={() => setSection('orders')} id="seller-manage-orders-btn">
-              <div className="dash-quick-action__icon">📦</div>
+              <div className="dash-quick-action__icon"><Glyph name="box" size={22} /></div>
               <div className="dash-quick-action__label">Manage Orders</div>
             </button>
             <button className="dash-quick-action" onClick={() => setSection('products')} id="seller-view-products-btn">
-              <div className="dash-quick-action__icon">👕</div>
+              <div className="dash-quick-action__icon"><Glyph name="bag" size={22} /></div>
               <div className="dash-quick-action__label">View Products</div>
             </button>
             <button className="dash-quick-action" onClick={() => setSection('earnings')} id="seller-view-earnings-btn">
-              <div className="dash-quick-action__icon">💰</div>
+              <div className="dash-quick-action__icon"><Glyph name="wallet" size={22} /></div>
               <div className="dash-quick-action__label">View Earnings</div>
             </button>
           </div>
@@ -155,7 +169,7 @@ export const SellerDashboard: React.FC = () => {
           {/* Low stock warning */}
           {(dashboard?.low_stock_products_count ?? 0) > 0 && (
             <div className="dash-alert dash-alert--warning">
-              ⚠️ You have <strong>{dashboard!.low_stock_products_count}</strong> product variant(s) with low stock.
+              <Icon name="alert" size={16} /> You have <strong>{dashboard!.low_stock_products_count}</strong> product variant(s) with low stock.
               <button className="dash-btn dash-btn--ghost" onClick={() => setSection('products')} style={{ marginLeft: 'auto' }}>
                 View Products
               </button>
@@ -205,17 +219,12 @@ export const SellerDashboard: React.FC = () => {
           </div>
           <div className="dash-metrics">
             <div className="dash-metric-card">
-              <div className="dash-metric-card__icon">💰</div>
-              <div className="dash-metric-card__value">₹{(dashboard?.total_earnings ?? 0).toLocaleString('en-IN')}</div>
-              <div className="dash-metric-card__label">Total Earnings (Completed Orders)</div>
+              <div className="dash-metric-card__icon"><Glyph name="wallet" size={22} /></div>
+              <div className="dash-metric-card__value">₹{(settlements.reduce((sum, s) => sum + Number(s.payable_paise), 0) / 100).toLocaleString('en-IN')}</div>
+              <div className="dash-metric-card__label">Protected and eligible earnings</div>
             </div>
           </div>
-          <div className="dash-table-wrap">
-            <div className="dash-empty">
-              <div className="dash-empty__icon">📈</div>
-              <div className="dash-empty__text">Earnings include completed merchandise sales, excluding customer delivery fees.</div>
-            </div>
-          </div>
+          <div className="dash-table-wrap">{!settlements.length ? <div className="dash-empty"><div className="dash-empty__icon"><Glyph name="chart" size={30} /></div><div className="dash-empty__text">Earnings become eligible after the three-hour protection window closes.</div></div> : settlements.map(s => <article key={s.id} style={{ padding: 12, borderBottom: '1px solid #444' }}><b>₹{(Number(s.payable_paise) / 100).toFixed(2)}</b> · {s.status}<br /><small>Seller order {s.seller_order_id}</small></article>)}</div>
         </>
       )}
 
@@ -239,7 +248,7 @@ const RecentOrdersTable: React.FC<RecentOrdersTableProps> = ({ orders, onUpdateS
     return (
       <div className="dash-table-wrap">
         <div className="dash-empty">
-          <div className="dash-empty__icon">📦</div>
+          <div className="dash-empty__icon"><Glyph name="box" size={30} /></div>
           <div className="dash-empty__text">No orders yet. They will appear here when customers place orders.</div>
         </div>
       </div>
