@@ -1,6 +1,7 @@
 import { updateOrderProgress } from '../../services/orderProgress.service';
 import { fail } from '../../utils/httpError';
 import { db } from '../../config/database';
+import { notify } from '../../services/notification.service';
 import {
   SellerOrder,
   SellerOrderItem,
@@ -92,6 +93,7 @@ export async function updateSellerOrderStatus(
     await trx('seller_orders').where({ id: orderId }).update({ status: dto.status, notes: dto.notes ?? order.notes, updated_at: trx.fn.now() });
     await updateOrderProgress(trx, parent.id);
     await trx('audit_logs').insert({ user_id: seller.user_id, action: `SELLER_ORDER_${dto.status.toUpperCase()}`, metadata: JSON.stringify({ seller_order_id: orderId, from: order.status }) });
+    await notify(parent.customer_id, `SELLER_ORDER_${dto.status.toUpperCase()}`, dto.status.replaceAll('_', ' '), `Your seller order is now ${dto.status.replaceAll('_', ' ')}.`, { order_id: parent.id, seller_order_id: orderId }, trx);
   });
   return (await getSellerOrderById(orderId, sellerId)) as SellerOrder;
 }

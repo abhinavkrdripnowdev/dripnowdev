@@ -21,6 +21,8 @@ import {
   verifyEmailSchema,
 } from './auth.validators';
 import { db } from '../../config/database';
+import { OAuth2Client } from 'google-auth-library';
+import { env } from '../../config/env';
 import { sha256Hash } from '../../utils/crypto';
 import { createSecurityEvent } from '../../services/security.service';
 import {
@@ -466,6 +468,57 @@ export async function me(req: Request, res: Response, next: NextFunction): Promi
     const user = await authService.getCurrentUser(req.user.id);
     sendSuccess(res, user);
   } catch (err) {
+    next(err);
+  }
+}
+
+
+// ─── Google Sign-In ───────────────────────────────────────────────────────────
+
+export function googleConfig(_req: Request, res: Response): void {
+  const clientId = env.GOOGLE_CLIENT_ID;
+  sendSuccess(res, { enabled: Boolean(clientId && !clientId.startsWith('your_')), client_id: clientId && !clientId.startsWith('your_') ? clientId : null });
+}
+
+export async function loginGoogle(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const clientId = env.GOOGLE_CLIENT_ID;
+    if (!clientId || clientId.startsWith('your_')) {
+      sendError(res, 'Google sign-in is not configured', 503);
+      return;
+    }
+    const idToken = typeof req.body?.id_token === 'string' ? req.body.id_token : '';
+    if (!idToken || idToken.length > 4096) {
+      sendError(res, 'A Google ID token is required', 422);
+      return;
+    }
+    const client = new OAuth2Client(clientId);
+    let payload;
+    try {
+      payload = (await client.verifyIdToken({ idToken, audience: clientId })).getPayload();
+    } catch {
+      sendError(res, 'Invalid Google credential', 401);
+      return;
+    }
+    if (!payload?.sub || !payload.email || !payload.email_verified) {
+      sendError(res, 'Your Google account email is not verified', 401);
+      return;
+    }
+    const result = await authService.loginWithGoogle(
+      { sub: payload.sub, email: payload.email.toLowerCase(), name: payload.name || payload.email.split('@')[0], picture: payload.picture },
+      req.ip,
+      req.headers['user-agent']
+    );
+    res.cookie('refreshToken', result.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+    sendSuccess(res, { user: result.user, accessToken: result.accessToken }, 'Login successful');
+  } catch (err) {
+    const e = err as { statusCode?: number; message?: string };
+    if (e.statusCode) { sendError(res, e.message ?? 'Login failed', e.statusCode); return; }
     next(err);
   }
 }

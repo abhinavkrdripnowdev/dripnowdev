@@ -1,7 +1,7 @@
 {
   "name": "dripnow-backend",
   "version": "1.0.0",
-  "description": "DripNow E-Commerce Platform \u2014 API Server",
+  "description": "DripNow E-Commerce Platform — API Server",
   "main": "dist/app.js",
   "scripts": {
     "dev": "tsx watch src/app.ts",
@@ -14,7 +14,8 @@
     "test": "npm run build && node --test tests/*.test.cjs",
     "db:create": "node scripts/setup-mysql.cjs",
     "admin:bootstrap": "npm run build && node scripts/bootstrap-admin.cjs",
-    "jobs": "npm run build && node dist/jobs/maintenance.js"
+    "jobs": "npm run build && node dist/jobs/maintenance.js",
+    "generate:postman": "node generate_postman.js"
   },
   "keywords": [],
   "author": "DripNow Dev",
@@ -24,10 +25,12 @@
     "axios": "^1.20.0",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^13.0.3",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^18.0.1",
     "express": "^5.2.1",
     "express-rate-limit": "^8.7.0",
+    "google-auth-library": "^11.1.0",
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
     "knex": "^3.3.0",
@@ -38,8 +41,7 @@
     "sqlite3": "^6.0.1",
     "uuid": "^14.0.2",
     "winston": "^3.19.0",
-    "zod": "^4.6.5",
-    "cookie-parser": "^1.4.7"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

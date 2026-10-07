@@ -488,8 +488,18 @@ export async function loginWithGoogle(
 
   let userId: string;
 
+  // Google sign-in is for storefront customers only; staff roles must use their own portals.
+  const assertCustomerOnly = async (uid: string, status?: string) => {
+    if (status && status !== 'active') throw Object.assign(new Error('Your account has been suspended'), { statusCode: 403 });
+    const userRoles = await getUserRoles(uid);
+    if (userRoles.some((r) => r !== 'customer')) {
+      throw Object.assign(new Error('Google sign-in is only available for customer accounts. Please use your designated login portal.'), { statusCode: 403 });
+    }
+  };
+
   if (googleIdentity) {
     userId = googleIdentity.user_id;
+    await assertCustomerOnly(userId, (await db('users').where({ id: userId }).first())?.status);
     // Update Google profile info
     await db('google_identities').where({ id: googleIdentity.id }).update({
       google_email: profile.email,
@@ -501,7 +511,8 @@ export async function loginWithGoogle(
     let existingUser = await db('users').where({ email: profile.email }).first();
 
     if (existingUser) {
-      // Link Google account to existing user
+      // Link Google account to existing user (Google has verified this email)
+      await assertCustomerOnly(existingUser.id, existingUser.status);
       userId = existingUser.id;
     } else {
       // Create new customer

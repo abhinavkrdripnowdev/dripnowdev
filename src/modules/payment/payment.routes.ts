@@ -6,6 +6,7 @@ import { razorpayRequest, verifySignature } from '../../integrations/payment/raz
 import { fail } from '../../utils/httpError';
 import { sendSuccess } from '../../utils/response';
 import { z } from 'zod';
+import { recordCustomerFunds } from '../../services/finance.service';
 
 export async function confirmCapturedPayment(entity: any, eventId: string) {
   entity = z.object({ id: z.string().regex(/^pay_[a-zA-Z0-9]+$/), order_id: z.string().regex(/^order_[a-zA-Z0-9]+$/), status: z.string(), currency: z.string(), amount: z.number().int().positive() }).parse(entity);
@@ -24,8 +25,9 @@ export async function confirmCapturedPayment(entity: any, eventId: string) {
     }
     const late = order.status === 'CANCELLED';
     await trx('payments').where({ id: payment.id }).update({ provider_payment_id: entity.id, status: late ? 'refund_required' : 'paid' });
+    await recordCustomerFunds(trx, order.id, Number(payment.amount_paise), 'RAZORPAY');
     await trx('payment_transactions').insert({ id: eventId, payment_id: payment.id, event: late ? 'LATE_CAPTURE_REFUND_REQUIRED' : 'PAYMENT_CAPTURED' });
-    if (late && !await trx('order_requests').where({ order_id: order.id, kind: 'CANCELLATION' }).first()) await trx('order_requests').insert({ id: randomUUID(), order_id: order.id, kind: 'CANCELLATION', reason: 'Payment captured after cancellation', status: 'APPROVED' });
+    if (late && !await trx('order_requests').where({ order_id: order.id, kind: 'CANCELLATION' }).first()) { const requestId = randomUUID(); await trx('order_requests').insert({ id: requestId, order_id: order.id, kind: 'CANCELLATION', reason: 'Payment captured after cancellation', status: 'APPROVED' }); await trx('refunds').insert({ id: randomUUID(), order_request_id: requestId, order_id: order.id, amount_paise: payment.amount_paise, status: 'APPROVED' }); }
     if (!late) await trx('orders').where({ id: order.id }).update({ payment_status: 'paid', ...(order.status === 'PAYMENT_PENDING' ? { status: 'PAYMENT_CONFIRMED' } : {}) });
     await trx('audit_logs').insert({ user_id: order.customer_id, action: late ? 'LATE_CAPTURE_REFUND_REQUIRED' : 'PAYMENT_CONFIRMED', metadata: JSON.stringify({ order_id: order.id, payment_id: entity.id }) });
   });

@@ -15,7 +15,7 @@ export async function searchPlaces(req: Request, res: Response): Promise<void> {
     const suggestions = await placesService.searchPlaces(query);
     sendSuccess(res, suggestions);
   } catch (error: any) {
-    sendError(res, error.message || 'Failed to search places');
+    sendError(res, error.message || 'Failed to search places', error.statusCode || 503);
   }
 }
 
@@ -32,7 +32,7 @@ export async function reverseGeocode(req: Request, res: Response): Promise<void>
     const result = await geocodingService.reverseGeocode(lat, lng);
     sendSuccess(res, result);
   } catch (error: any) {
-    sendError(res, error.message || 'Failed to reverse geocode location');
+    sendError(res, error.message || 'Failed to reverse geocode location', error.statusCode || 503);
   }
 }
 

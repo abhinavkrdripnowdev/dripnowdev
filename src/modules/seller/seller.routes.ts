@@ -4,6 +4,8 @@ import { createSellerSchema, updateSellerSchema, addDocumentSchema, addLocationS
 import { Router } from 'express';
 import * as controller from './seller.controller';
 import { authenticate } from '../../middleware/authenticate';
+import { db } from '../../config/database';
+import { sendSuccess } from '../../utils/response';
 
 const router = Router();
 
@@ -27,5 +29,6 @@ router.put('/location', validate(addLocationSchema.strict()), controller.updateL
 
 /** GET /api/v1/seller/dashboard — Get seller dashboard overview metrics */
 router.get('/dashboard', controller.getDashboardOverview);
+router.get('/earnings', async (req, res) => { const seller = await db('seller_profiles').where({ user_id: req.user!.id }).first(); sendSuccess(res, seller ? await db('settlements').where({ seller_id: seller.id }).orderBy('created_at', 'desc') : []); });
 
 export default router;

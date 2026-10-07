@@ -88,7 +88,7 @@ export async function getProductById(req: Request, res: Response, next: NextFunc
     const productId = req.params.id as string;
     const product = await productService.getProductById(productId);
     const approved = product && await db('seller_profiles').where({ id: product.seller_id, status: 'approved' }).first();
-    if (!product || !product.is_active || !approved) {
+    if (!product || !product.is_active || product.moderation_status !== 'APPROVED' || !approved) {
       sendNotFound(res, 'Product not found');
       return;
     }

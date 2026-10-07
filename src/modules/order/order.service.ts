@@ -1,5 +1,6 @@
 import { platformSettings } from '../../services/settings.service';
-import { sellerDiscount } from '../../services/pricing.service';
+import { platformDiscount, sellerDiscount } from '../../services/pricing.service';
+import { notify } from '../../services/notification.service';
 import { db } from '../../config/database';
 import { randomUUID } from 'crypto';
 import { calculateDistance } from '../../integrations/maps/distance';
@@ -48,22 +49,26 @@ export async function checkout(userId: string, addressId: string, paymentMethod:
       if (!location || location.latitude == null || location.longitude == null) fail('Seller pickup location is missing', 409);
       const distance = calculateDistance(Number(location.latitude), Number(location.longitude), Number(address.latitude), Number(address.longitude));
       const fee = Math.round(settings.delivery_base_paise + Math.max(0, distance.distance_km - settings.delivery_free_km) * settings.delivery_per_km_paise);
-      deliveryPaise += fee;
       const subtotal = sellerItems.reduce((sum, i) => sum + i.unit_paise * i.quantity, 0);
       const discount = await sellerDiscount(trx, sellerId, sellerItems, subtotal, couponCode); discountTotal += discount;
       shipments.push({ discount, id: randomUUID(), sellerId, items: sellerItems, fee, subtotal: sellerItems.reduce((sum, i) => sum + i.unit_paise * i.quantity, 0) });
     }
+    // The customer pays one route fee for the checkout. Multi-seller operational
+    // costs are represented in partner earnings, never multiplied onto the buyer.
+    deliveryPaise = Math.max(...shipments.map(s => s.fee));
     const platformPaise = settings.platform_fee_paise;
+    const platformDiscountPaise = await platformDiscount(trx, subtotalPaise, couponCode);
+    discountTotal += platformDiscountPaise;
     let taxPaise = 0;
-    for (const [index, shipment] of shipments.entries()) { shipment.tax = Math.round((shipment.subtotal - shipment.discount) * settings.tax_basis_points / 10000); taxPaise += shipment.tax; shipment.platform = index === 0 ? platformPaise : 0; }
-    if (quoteOnly) return { order_id: '', total_amount: subtotalPaise / 100, delivery_fee: deliveryPaise / 100, discount_amount: discountTotal / 100, tax_amount: taxPaise / 100, platform_fee: platformPaise / 100, final_amount: (subtotalPaise + deliveryPaise - discountTotal + taxPaise + platformPaise) / 100 };
+    for (const [index, shipment] of shipments.entries()) { shipment.tax = Math.round((shipment.subtotal - shipment.discount) * settings.tax_basis_points / 10000); taxPaise += shipment.tax; shipment.platform = index === 0 ? platformPaise : 0; shipment.platformDiscount = index === 0 ? platformDiscountPaise : 0; shipment.customerFee = index === 0 ? deliveryPaise : 0; }
+    if (quoteOnly) return { order_id: '', total_amount: subtotalPaise / 100, delivery_fee: deliveryPaise / 100, discount_amount: discountTotal / 100, platform_discount: platformDiscountPaise / 100, tax_amount: taxPaise / 100, platform_fee: platformPaise / 100, final_amount: (subtotalPaise + deliveryPaise - discountTotal + taxPaise + platformPaise) / 100 };
     await trx('orders').insert({ id: orderId, customer_id: userId, address_id: addressId, address_snapshot: JSON.stringify(address),
       checkout_key: checkoutKey ?? null, total_amount: subtotalPaise / 100, delivery_fee: deliveryPaise / 100,
-      discount_amount: discountTotal / 100, tax_amount: taxPaise / 100, platform_fee: platformPaise / 100, final_amount: (subtotalPaise + deliveryPaise - discountTotal + taxPaise + platformPaise) / 100, payment_method: paymentMethod, payment_status: 'pending',
+      discount_amount: discountTotal / 100, platform_discount: platformDiscountPaise / 100, tax_amount: taxPaise / 100, platform_fee: platformPaise / 100, final_amount: (subtotalPaise + deliveryPaise - discountTotal + taxPaise + platformPaise) / 100, payment_method: paymentMethod, payment_status: 'pending',
       status: paymentMethod === 'cod' ? 'PAYMENT_CONFIRMED' : 'PAYMENT_PENDING' });
     for (const shipment of shipments) {
       await trx('seller_orders').insert({ id: shipment.id, parent_order_id: orderId, seller_id: shipment.sellerId, customer_id: userId,
-        subtotal: shipment.subtotal / 100, discount_amount: shipment.discount / 100, total_amount: (shipment.subtotal + shipment.fee - shipment.discount + shipment.tax + shipment.platform) / 100, status: 'new' });
+        subtotal: shipment.subtotal / 100, discount_amount: shipment.discount / 100, total_amount: (shipment.subtotal + shipment.customerFee - shipment.discount - shipment.platformDiscount + shipment.tax + shipment.platform) / 100, status: 'new' });
       await trx('seller_order_items').insert(shipment.items.map((i: any) => ({ id: randomUUID(), seller_order_id: shipment.id,
         product_id: i.product_id, variant_id: i.variant_id, product_name: i.name, variant_info: JSON.stringify({ size: i.size, color: i.color }),
         quantity: i.quantity, unit_price: i.unit_paise / 100, total_price: i.unit_paise * i.quantity / 100 })));
@@ -71,7 +76,8 @@ export async function checkout(userId: string, addressId: string, paymentMethod:
     await trx('payments').insert({ id: randomUUID(), order_id: orderId, amount_paise: subtotalPaise + deliveryPaise - discountTotal + taxPaise + platformPaise, status: paymentMethod === 'cod' ? 'cod_pending' : 'pending' });
     await trx('cart_items').where({ cart_id: cart.id }).delete();
     await trx('audit_logs').insert({ user_id: userId, action: 'CHECKOUT_CREATED', metadata: JSON.stringify({ order_id: orderId }) });
-    return { order_id: orderId, total_amount: subtotalPaise / 100, delivery_fee: deliveryPaise / 100, discount_amount: discountTotal / 100, tax_amount: taxPaise / 100, platform_fee: platformPaise / 100, final_amount: (subtotalPaise + deliveryPaise - discountTotal + taxPaise + platformPaise) / 100 };
+    await notify(userId, 'ORDER_PLACED', 'Order placed', 'Your order was placed successfully.', { order_id: orderId }, trx);
+    return { order_id: orderId, total_amount: subtotalPaise / 100, delivery_fee: deliveryPaise / 100, discount_amount: discountTotal / 100, platform_discount: platformDiscountPaise / 100, tax_amount: taxPaise / 100, platform_fee: platformPaise / 100, final_amount: (subtotalPaise + deliveryPaise - discountTotal + taxPaise + platformPaise) / 100 };
   });
 }
 
@@ -120,7 +126,7 @@ export async function cancelOrder(orderId: string, userId: string) {
     if (order.status === 'CANCELLED') return;
     const shipments = await trx('seller_orders').where({ parent_order_id: orderId }).forUpdate();
     if (shipments.some(s => s.status !== 'new')) fail('Order preparation has started', 409);
-    if (order.payment_status === 'paid') await trx('order_requests').insert({ id: randomUUID(), order_id: order.id, kind: 'CANCELLATION', reason: 'Customer cancellation before preparation', status: 'APPROVED' });
+    if (order.payment_status === 'paid') { const requestId = randomUUID(); const payment = await trx('payments').where({ order_id: order.id }).first(); await trx('order_requests').insert({ id: requestId, order_id: order.id, kind: 'CANCELLATION', reason: 'Customer cancellation before preparation', status: 'APPROVED' }); await trx('refunds').insert({ id: randomUUID(), order_request_id: requestId, order_id: order.id, amount_paise: payment.amount_paise, status: 'APPROVED' }); }
     if (!['ORDER_CREATED', 'PAYMENT_PENDING', 'PAYMENT_CONFIRMED', 'SELLER_ORDER_CREATED'].includes(order.status)) fail('Order cannot be cancelled', 409);
     for (const shipment of shipments) {
       const items = await trx('seller_order_items').where({ seller_order_id: shipment.id });

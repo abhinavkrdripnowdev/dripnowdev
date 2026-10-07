@@ -66,6 +66,7 @@ export async function createProduct(sellerId: string, data: CreateProductDTO): P
     base_price: data.base_price,
     is_active: true,
     availability_status: 'in_stock',
+    moderation_status: 'PENDING',
   });
 
   // Create variants if provided, or default variant
@@ -137,7 +138,7 @@ export interface ProductFilterOptions {
 }
 
 export async function listPublicProducts(filters?: ProductFilterOptions): Promise<Product[]> {
-  let query = db('products').join('seller_profiles as seller', 'seller.id', 'products.seller_id').where({ 'products.is_active': true, 'seller.status': 'approved' }).select('products.*');
+  let query = db('products').join('seller_profiles as seller', 'seller.id', 'products.seller_id').where({ 'products.is_active': true, 'products.moderation_status': 'APPROVED', 'seller.status': 'approved' }).select('products.*');
 
   if (filters?.category_id) {
     query = query.where({ 'products.category_id': filters.category_id });

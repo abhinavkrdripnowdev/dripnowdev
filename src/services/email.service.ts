@@ -45,6 +45,11 @@ async function sendMail(to: string, subject: string, html: string): Promise<void
   }
 }
 
+export async function sendNotificationEmail(to: string, subject: string, message: string): Promise<void> {
+  const safe = message.replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]!));
+  await sendMail(to, subject, `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto"><h2>${subject}</h2><p>${safe}</p></div>`);
+}
+
 export async function sendEmailVerification(
   to: string,
   name: string,
